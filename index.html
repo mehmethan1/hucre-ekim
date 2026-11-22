@@ -105,6 +105,7 @@ button.ghost{background:transparent}
 .msg.warn{background:var(--warn-soft);border-color:var(--warn)}
 .msg.bad{background:var(--bad-soft);border-color:var(--bad)}
 .empty{color:var(--muted);font-size:.92rem}
+.calc-btn{width:100%;padding:16px;font-size:1.1rem;border-radius:10px}
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .tbl-wrap{overflow-x:auto}
@@ -205,7 +206,7 @@ const sup=e=>String(e).split('').map(c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['012345678
 function blankLine(name){return {name,sq:Array(8).fill(''),dead:'',df:'1',tube:'6'}}
 function defaults(){
   const lines=DEFAULT_LINES.map(blankLine);
-  lines[0].sq=['22','25','23','24','21','24','23','22'];
+  lines[0].sq=['22','25','23','24','21','24','23','22'];lines[0].shown=true;
   return {settings:{cells:'350000',vol:'500',wells:'6',extra:'1'},lines,example:true};
 }
 let state;
@@ -256,12 +257,14 @@ state.lines.forEach((ln,i)=>{
   const t=c.querySelector('#t'+i);t.value=ln.tube;t.addEventListener('input',()=>{ln.tube=t.value;touch(i);save();update()});
   const chips=c.querySelectorAll('.chip');const dfc=c.querySelector('#dfc'+i);
   const syncDf=()=>{let m=false;chips.forEach(b=>{const on=b.dataset.v===String(ln.df);b.setAttribute('aria-pressed',on);if(on)m=true});dfc.value=m?'':ln.df};
-  chips.forEach(b=>b.addEventListener('click',()=>{ln.df=b.dataset.v;syncDf();save();update()}));
-  dfc.addEventListener('input',()=>{ln.df=dfc.value||'2';chips.forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===String(ln.df)&&dfc.value===''));save();update()});
+  chips.forEach(b=>b.addEventListener('click',()=>{ln.df=b.dataset.v;ln.shown=false;syncDf();save();update()}));
+  dfc.addEventListener('input',()=>{ln.df=dfc.value||'1';ln.shown=false;chips.forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===String(ln.df)&&dfc.value===''));save();update()});
   syncDf();
   refs.push({res:c.querySelector('#r'+i)});
 });
-function touch(i){if(i===0&&state.example){state.example=false;banner()}}
+function touch(i){state.lines[i].shown=false;if(i===0&&state.example){state.example=false;banner()}}
+cardsEl.addEventListener('click',e=>{const b=e.target.closest('.calc-btn');if(!b)return;const i=+b.dataset.i;
+  state.lines[i].shown=true;save();update();const el=refs[i].res;el.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
 function banner(){document.getElementById('exampleBanner').hidden=!state.example}
 document.getElementById('clearExample').addEventListener('click',()=>{
   const l=state.lines[0];l.sq=Array(8).fill('');l.dead='';state.example=false;
@@ -317,7 +320,8 @@ function update(){
   document.getElementById('setSummary').textContent=`${fmt(st.cells)} hücre · ${fmt(st.vol)} µL · ${fmt(st.wells)} kuyu`;
   results=state.lines.map((ln,i)=>{
     const r=calc(ln,st);const el=refs[i].res;
-    if(!r){el.innerHTML='<p class="empty">Kare sayılarını girince sonuç burada çıkar.</p>';return null}
+    if(!r){el.innerHTML='<p class="empty">Kare sayılarını gir, sonra "Medium\'u hesapla"ya bas.</p>';return null}
+    if(!ln.shown){el.innerHTML=`<button type="button" class="primary calc-btn" data-i="${i}">Medium'u hesapla</button>`;return null}
     let h=`<div class="stats">
       <div class="stat"><span class="k">Taraf ortalaması</span><span class="v">${fmt(r.sideAvg,1)}</span></div>
       <div class="stat"><span class="k">Toplam hücre</span><span class="v">${Number.isFinite(r.total)?fmt(r.total,0):'–'}</span></div>
@@ -340,7 +344,7 @@ function summary(st){
   const t=document.getElementById('sumTable');
   let h='<thead><tr><th>Hat</th><th>Toplam hücre</th><th>Kuyu: hücre</th><th>Kuyu: medium</th><th>Karışım: hücre</th><th>Karışım: medium</th></tr></thead><tbody>';
   state.lines.forEach((ln,i)=>{const r=results[i];
-    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Sayım yok'}</td>`)+'</tr>'});
+    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Henüz hesaplanmadı'}</td>`)+'</tr>'});
   t.innerHTML=h+'</tbody>';
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -358,7 +362,7 @@ document.getElementById('copyBtn').addEventListener('click',()=>{
   const st=settings();
   let s=`Ekim hesabı (${fmt(st.cells)} hücre/kuyu, ${fmt(st.vol)} µL)\n`;
   state.lines.forEach((ln,i)=>{const r=results[i];
-    if(!r){s+=`${ln.name}: sayım yok\n`;return}
+    if(!r){s+=`${ln.name}: hesaplanmadı\n`;return}
     if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
     s+=`${ln.name}: taraf ort ${fmt(r.sideAvg,1)}, toplam ${Number.isFinite(r.total)?fmt(r.total,0):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium | karışım (${r.nMix}): ${volStr(r.mixCell)} + ${volStr(r.mixMed)}\n`});
   const toast=document.getElementById('toast');
