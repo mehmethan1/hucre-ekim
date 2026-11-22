@@ -148,9 +148,7 @@ td:first-child{font-family:var(--sans);font-weight:600}
     <div class="set-grid">
       <div class="field"><label for="s-cells">Kuyu başı hücre</label><input type="text" inputmode="numeric" id="s-cells"></div>
       <div class="field"><label for="s-vol">Kuyu başı toplam hacim (µL)</label><input type="text" inputmode="decimal" id="s-vol"></div>
-      <div class="field"><label for="s-wells">Hat başı kuyu sayısı</label><input type="text" inputmode="numeric" id="s-wells"></div>
-      <div class="field"><label for="s-extra">Karışıma fazladan kuyu payı</label><input type="text" inputmode="numeric" id="s-extra"></div>
-    </div>
+      <div class="field"><label for="s-wells">Hat başı kuyu sayısı</label><input type="text" inputmode="numeric" id="s-wells"></div>    </div>
   </details>
 
   <div class="banner" id="exampleBanner" hidden>
@@ -185,7 +183,6 @@ td:first-child{font-family:var(--sans);font-weight:600}
     <ol>
       <li><strong>6 mL'de toplayınca:</strong> 350.000 hücre 500 µL'ye sığsın diye tüpte en az 700.000 hücre/mL gerekir. Bu, taraf ortalamasının (4 kare toplamı) en az 70 olması demek. Altındaysa santrifüjleyip daha az mediumda topla.</li>
       <li><strong>Seyreltmeli miyim?</strong> Bir karede 100'den fazla hücre varsa hücreler üst üste biner. Hücreleri daha fazla mediumda toplayıp yeniden say.</li>
-      <li><strong>Karışım yöntemi:</strong> Her kuyuya ayrı ayrı pipetlemek yerine bir hattın tüm kuyuları için süspansiyon ve mediumu tek tüpte karıştır, sonra her kuyuya toplam hacmi dağıt. Hem daha hızlı hem daha doğru. Fazladan kuyu payı pipet kaybını karşılar.</li>
     </ol>
   </section>
 
@@ -219,9 +216,9 @@ if(!state||!state.lines||state.lines.length!==4)state=defaults();
 function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
 
 // settings
-const S={cells:'s-cells',vol:'s-vol',wells:'s-wells',extra:'s-extra'};
+const S={cells:'s-cells',vol:'s-vol',wells:'s-wells'};
 for(const k in S){const el=document.getElementById(S[k]);el.value=state.settings[k];el.addEventListener('input',()=>{state.settings[k]=el.value;save();update()})}
-function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:parse(state.settings.extra)||0}}
+function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:0}}
 
 // cards
 const cardsEl=document.getElementById('cards');
@@ -289,7 +286,7 @@ function calc(ln,st){
   if(n>=3&&cv>0.25)msgs.push(['warn',`Kareler arasında fark büyük (%${fmt(cv*100,0)}). Süspansiyonu iyice pipetleyip karıştır, hemositometreyi yeniden yükle.`]);
   if(!(tube>0))msgs.push(['bad','Hesap için "Hücreleri topladığın hacim" kutusunu doldur.']);
   else if(cellVol>st.vol)msgs.push(['bad',`Süspansiyon çok seyreltik: bir kuyuya ${fmt(cellVol,0)} µL gerekiyor, bu kuyu hacmini (${fmt(st.vol,0)} µL) aşıyor. Hücreleri santrifüjleyip daha az mediumda topla, sonra yeniden say.`]);
-  else if(cellVol<2)msgs.push(['warn',`Kuyu başı ${fmt(cellVol,1)} µL çok az, pipetlemesi zor. Karışım yöntemini kullan ya da süspansiyonu önce seyrelt.`]);
+  else if(cellVol<2)msgs.push(['warn',`Kuyu başı ${fmt(cellVol,1)} µL çok az, pipetlemesi zor. Süspansiyonu önce seyrelt.`]);
   if(Number.isFinite(avail)&&avail<need)msgs.push(['bad',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yetmiyor.`]);
   else if(Number.isFinite(avail))msgs.push(['ok',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yeterli.`]);
   if(!msgs.some(m=>m[0]!=='ok')&&msgs.length===0)msgs.push(['ok','Sayım aralığı uygun.']);
@@ -315,11 +312,6 @@ function update(){
         <div class="step"><span class="sk">3. Eklenecek medium</span><span class="sv">${fmt(st.vol)} − ${fmt(r.cellVol,1)} = <strong>${r.ok?fmt(r.medVol,1)+' µL':'eksi çıkıyor'}</strong></span></div>
       </div>
       ${r.ok?pourHTML(fmt(r.cellVol,1)+' µL',fmt(r.medVol,1)+' µL'):''}</div>`;
-    if(r.ok){
-      h+=`<div class="recipe"><span class="title">İstersen tek tüpte: ${r.nMix} kuyuluk karışım</span>
-        ${pourHTML(volStr(r.mixCell),volStr(r.mixMed))}
-        <p class="then">İyice karıştır, sonra her kuyuya ${fmt(st.vol,0)} µL dağıt.</p></div>`;
-    }
     if(Number.isFinite(r.total))h+=`<div class="formula">Tüpteki toplam hücre: ${sa} × 10.000 × ${fmt(r.tube,1)} mL = ${fmt(r.total,0)}</div>`;
     h+=`<div class="msgs">${r.msgs.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('')}</div>`;
     el.innerHTML=h;return r;
@@ -329,9 +321,9 @@ function update(){
 
 function summary(st){
   const t=document.getElementById('sumTable');
-  let h='<thead><tr><th>Hat</th><th>Toplam hücre</th><th>Kuyu: hücre</th><th>Kuyu: medium</th><th>Karışım: hücre</th><th>Karışım: medium</th></tr></thead><tbody>';
+  let h='<thead><tr><th>Hat</th><th>Toplam hücre</th><th>Kuyu: hücre</th><th>Kuyu: medium</th></tr></thead><tbody>';
   state.lines.forEach((ln,i)=>{const r=results[i];
-    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Henüz hesaplanmadı'}</td>`)+'</tr>'});
+    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td>`:`<td colspan="3" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Henüz hesaplanmadı'}</td>`)+'</tr>'});
   t.innerHTML=h+'</tbody>';
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -351,7 +343,7 @@ document.getElementById('copyBtn').addEventListener('click',()=>{
   state.lines.forEach((ln,i)=>{const r=results[i];
     if(!r){s+=`${ln.name}: hesaplanmadı\n`;return}
     if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
-    s+=`${ln.name}: taraf ort ${fmt(r.sideAvg,1)}, toplam ${Number.isFinite(r.total)?fmt(r.total,0):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium | karışım (${r.nMix}): ${volStr(r.mixCell)} + ${volStr(r.mixMed)}\n`});
+    s+=`${ln.name}: taraf ort ${fmt(r.sideAvg,1)}, toplam ${Number.isFinite(r.total)?fmt(r.total,0):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium\n`});
   const toast=document.getElementById('toast');
   const done=()=>{toast.textContent='Kopyalandı';setTimeout(()=>toast.textContent='',2000)};
   try{navigator.clipboard.writeText(s).then(done,()=>{toast.textContent='Kopyalanamadı, tablodan elle seç.'})}catch(e){toast.textContent='Kopyalanamadı, tablodan elle seç.'}
