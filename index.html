@@ -134,7 +134,7 @@ td:first-child{font-family:var(--sans);font-weight:600}
   <header>
     <span class="eyebrow">Hemositometre → kuyu ekimi</span>
     <h1>Sena'nın Ekim Hesabı</h1>
-    <p>Dört köşe karede saydığın canlı hücreleri yaz, gerisini sayfa hesaplasın. Her hücre hattı için kuyu başına ne kadar süspansiyon ve ne kadar medium koyacağın aşağıda çıkar.</p>
+    <p>Hemositometrenin iki tarafındaki köşe karelerde saydığın canlı hücreleri yaz, gerisini sayfa hesaplasın. Her hücre hattı için kuyu başına ne kadar süspansiyon ve ne kadar medium koyacağın aşağıda çıkar.</p>
   </header>
 
   <details class="settings" id="settings">
@@ -172,8 +172,9 @@ td:first-child{font-family:var(--sans);font-weight:600}
 
   <section class="panel howto">
     <h2>Nasıl hesaplıyor?</h2>
-    <div class="formula">hücre/mL = kare ortalaması × seyreltme faktörü × 10.000</div>
-    <div class="formula">kuyuya süspansiyon (µL) = kuyu başı hücre ÷ hücre/mL × 1000</div>
+    <div class="formula">kare ortalaması = iki taraftaki köşe karelerin toplamı ÷ kare sayısı</div>
+    <div class="formula">toplam hücre = kare ortalaması × 10.000 × 6 mL</div>
+    <div class="formula">kuyuya süspansiyon (µL) = 350.000 ÷ toplam hücre × 6 mL × 1000</div>
     <div class="formula">medium (µL) = kuyu hacmi − süspansiyon</div>
     <ol>
       <li><strong>Seyreltme faktörü:</strong> Hücreleri 6 mL mediumda toplayıp tüpten direkt hemositometreye koyduysan faktör 1'dir (varsayılan). 10 µL hücre + 10 µL trypan blue karıştırdıysan faktör 2'dir.</li>
@@ -194,17 +195,17 @@ td:first-child{font-family:var(--sans);font-weight:600}
 (function(){
 const COLORS=['--c1','--c2','--c3','--c4'];
 const DEFAULT_LINES=['CCLP','R-CCLP','HuCCT','R-HuCCT'];
-const STORE='sena-ekim-v2';
+const STORE='sena-ekim-v3';
 const fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
 const parse=v=>{if(v==null)return NaN;const s=String(v).trim().replace(/\./g,'').replace(',', '.');if(s==='')return NaN;return Number(s)};
 const parseDec=v=>{if(v==null)return NaN;const s=String(v).trim().replace(',', '.');if(s==='')return NaN;return Number(s)};
 const sci=n=>{if(!Number.isFinite(n)||n<=0)return '–';const e=Math.floor(Math.log10(n));const m=n/Math.pow(10,e);return fmt(m,2)+' × 10'+sup(e)};
 const sup=e=>String(e).split('').map(c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)]||c).join('');
 
-function blankLine(name){return {name,sq:['','','',''],dead:'',df:'1',tube:'6'}}
+function blankLine(name){return {name,sq:Array(8).fill(''),dead:'',df:'1',tube:'6'}}
 function defaults(){
   const lines=DEFAULT_LINES.map(blankLine);
-  lines[0].sq=['88','95','91','97'];
+  lines[0].sq=['88','95','91','97','90','86','94','93'];
   return {settings:{cells:'350000',vol:'500',wells:'6',extra:'1'},lines,example:true};
 }
 let state;
@@ -227,12 +228,12 @@ state.lines.forEach((ln,i)=>{
   <div class="card-head"><span class="dot" style="background:${col}"></span>
     <input type="text" class="name" id="n${i}" aria-label="Hücre hattı adı"></div>
   <div class="card-body">
-    <div>
-      <div class="eyebrow" style="margin-bottom:6px">Canlı hücre sayısı (4 köşe kare)</div>
+    ${[0,1].map(side=>`<div>
+      <div class="eyebrow" style="margin-bottom:6px">${side+1}. taraf · canlı hücre (köşe kareler)</div>
       <div class="hemo">
-        ${['Sol üst','Sağ üst','Sol alt','Sağ alt'].map((t,j)=>`<div class="sq"><label for="q${i}_${j}">${t}</label><input type="text" inputmode="numeric" id="q${i}_${j}" placeholder="0"></div>`).join('')}
+        ${['Sol üst','Sağ üst','Sol alt','Sağ alt'].map((t,k)=>{const j=side*4+k;return `<div class="sq"><label for="q${i}_${j}">${t}</label><input type="text" inputmode="numeric" id="q${i}_${j}" placeholder="0"></div>`}).join('')}
       </div>
-    </div>
+    </div>`).join('')}
     <div class="field"><span class="eyebrow">Sayımdan önce ek seyreltme</span>
       <div class="chips" id="df${i}">
         <button type="button" class="chip" data-v="1">Yok, tüpten direkt · 1</button>
@@ -242,7 +243,7 @@ state.lines.forEach((ln,i)=>{
         <input type="text" inputmode="decimal" id="dfc${i}" aria-label="Özel seyreltme faktörü" placeholder="diğer">
       </div></div>
     <div class="row2">
-      <div class="field"><label for="d${i}">Ölü (mavi) hücre, 4 kare toplam <span class="muted">(sadece trypan blue ile)</span></label><input type="text" inputmode="numeric" id="d${i}" placeholder="–"></div>
+      <div class="field"><label for="d${i}">Ölü (mavi) hücre, tüm kareler toplam <span class="muted">(sadece trypan blue ile)</span></label><input type="text" inputmode="numeric" id="d${i}" placeholder="–"></div>
       <div class="field"><label for="t${i}">Hücreleri topladığın hacim (mL)</label><input type="text" inputmode="decimal" id="t${i}" placeholder="–"></div>
     </div>
   </div>
@@ -250,7 +251,7 @@ state.lines.forEach((ln,i)=>{
   cardsEl.appendChild(c);
   const name=c.querySelector('#n'+i);name.value=ln.name;
   name.addEventListener('input',()=>{ln.name=name.value;save();update()});
-  for(let j=0;j<4;j++){const q=c.querySelector(`#q${i}_${j}`);q.value=ln.sq[j];q.addEventListener('input',()=>{ln.sq[j]=q.value;touch(i);save();update()})}
+  for(let j=0;j<8;j++){const q=c.querySelector(`#q${i}_${j}`);q.value=ln.sq[j];q.addEventListener('input',()=>{ln.sq[j]=q.value;touch(i);save();update()})}
   const d=c.querySelector('#d'+i);d.value=ln.dead;d.addEventListener('input',()=>{ln.dead=d.value;touch(i);save();update()});
   const t=c.querySelector('#t'+i);t.value=ln.tube;t.addEventListener('input',()=>{ln.tube=t.value;touch(i);save();update()});
   const chips=c.querySelectorAll('.chip');const dfc=c.querySelector('#dfc'+i);
@@ -263,9 +264,9 @@ state.lines.forEach((ln,i)=>{
 function touch(i){if(i===0&&state.example){state.example=false;banner()}}
 function banner(){document.getElementById('exampleBanner').hidden=!state.example}
 document.getElementById('clearExample').addEventListener('click',()=>{
-  const l=state.lines[0];l.sq=['','','',''];l.dead='';l.tube='';state.example=false;
-  for(let j=0;j<4;j++)document.getElementById(`q0_${j}`).value='';
-  document.getElementById('d0').value='';document.getElementById('t0').value='';
+  const l=state.lines[0];l.sq=Array(8).fill('');l.dead='';state.example=false;
+  for(let j=0;j<8;j++)document.getElementById(`q0_${j}`).value='';
+  document.getElementById('d0').value='';
   save();banner();update();
 });
 
@@ -279,25 +280,26 @@ function calc(ln,st){
   const cv=avg>0?sd/avg:0;
   const dead=parse(ln.dead);
   const viab=Number.isFinite(dead)&&sum+dead>0?sum/(sum+dead):NaN;
-  const cellVol=conc>0?st.cells/conc*1000:Infinity;
+  const tube=parseDec(ln.tube);
+  const total=Number.isFinite(tube)?conc*tube:NaN; // ort × 10.000 × hacim(mL)
+  // kuyuya gereken süspansiyon: 350.000 / toplam hücre × tüp hacmi  (= 350.000 / hücre/mL)
+  const cellVol=Number.isFinite(total)&&total>0?st.cells/total*tube*1000:(conc>0?st.cells/conc*1000:Infinity);
   const medVol=st.vol-cellVol;
   const nMix=(st.wells||0)+(st.extra||0);
   const mixCell=cellVol*nMix, mixMed=st.vol*nMix-mixCell;
-  const tube=parseDec(ln.tube);
-  const avail=Number.isFinite(tube)?conc*tube:NaN;
+  const avail=total;
   const need=st.cells*nMix;
   const msgs=[];
   if(avg>100)msgs.push(['warn',`Kare başı ortalama ${fmt(avg,0)} hücre. Bu kalabalık, sayım hatası artar. Örneği daha çok seyreltip (ör. 1:3, faktör 4) yeniden say.`]);
   else if(avg<20&&avg>0)msgs.push(['warn',`Kare başı ortalama ${fmt(avg,0)} hücre. Bu az, sayım güvenilirliği düşük. Mümkünse daha fazla kare say ya da daha az seyrelt.`]);
   if(n>=3&&cv>0.25)msgs.push(['warn',`Kareler arasında fark büyük (%${fmt(cv*100,0)}). Süspansiyonu iyice pipetleyip karıştır, hemositometreyi yeniden yükle.`]);
-  if(n<4)msgs.push(['warn',`${n} kare girildi; ortalama bu ${n} kareden alındı.`]);
   if(Number.isFinite(viab)&&viab<0.8)msgs.push(['warn',`Canlılık %${fmt(viab*100,0)}. %80'in altı genelde düşük kabul edilir, hocana danış.`]);
   if(cellVol>st.vol)msgs.push(['bad',`Süspansiyon çok seyreltik: bir kuyuya ${fmt(cellVol,0)} µL gerekiyor, bu kuyu hacmini (${fmt(st.vol,0)} µL) aşıyor. Hücreleri santrifüjleyip daha az mediumda topla, sonra yeniden say.`]);
   else if(cellVol<2)msgs.push(['warn',`Kuyu başı ${fmt(cellVol,1)} µL çok az, pipetlemesi zor. Karışım yöntemini kullan ya da süspansiyonu önce seyrelt.`]);
-  if(Number.isFinite(avail)&&avail<need)msgs.push(['bad',`Tüpte yaklaşık ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yetmiyor.`]);
-  else if(Number.isFinite(avail))msgs.push(['ok',`Tüpte yaklaşık ${fmt(avail,0)} hücre var, ${fmt(need,0)} gerekiyor. Yeterli.`]);
+  if(Number.isFinite(avail)&&avail<need)msgs.push(['bad',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yetmiyor.`]);
+  else if(Number.isFinite(avail))msgs.push(['ok',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yeterli.`]);
   if(!msgs.some(m=>m[0]!=='ok')&&msgs.length===0)msgs.push(['ok','Sayım aralığı uygun.']);
-  return {n,avg,df,conc,cv,viab,cellVol,medVol,nMix,mixCell,mixMed,avail,need,msgs,ok:cellVol<=st.vol};
+  return {n,avg,df,conc,cv,total,tube,viab,cellVol,medVol,nMix,mixCell,mixMed,avail,need,msgs,ok:cellVol<=st.vol};
 }
 
 function pourHTML(a,b){return `<div class="pour"><div class="part"><span class="big">${a}</span><span class="lbl">hücre süspansiyonu</span></div><span class="plus">+</span><div class="part"><span class="big">${b}</span><span class="lbl">medium</span></div></div>`}
@@ -311,9 +313,10 @@ function update(){
     const r=calc(ln,st);const el=refs[i].res;
     if(!r){el.innerHTML='<p class="empty">Kare sayılarını girince sonuç burada çıkar.</p>';return null}
     let h=`<div class="stats">
-      <div class="stat"><span class="k">Hücre/mL</span><span class="v">${sci(r.conc)}</span></div>
-      <div class="stat"><span class="k">Kare ort.</span><span class="v">${fmt(r.avg,1)}</span></div>
-      <div class="stat"><span class="k">Canlılık</span><span class="v">${Number.isFinite(r.viab)?'%'+fmt(r.viab*100,0):'–'}</span></div></div>`;
+      <div class="stat"><span class="k">Kare ort. (${r.n} kare)</span><span class="v">${fmt(r.avg,2)}</span></div>
+      <div class="stat"><span class="k">Toplam hücre</span><span class="v">${Number.isFinite(r.total)?fmt(r.total,0):'–'}</span></div>
+      <div class="stat"><span class="k">Canlılık</span><span class="v">${Number.isFinite(r.viab)?'%'+fmt(r.viab*100,0):'–'}</span></div></div>
+      <div class="formula">${fmt(r.avg,2)} × 10.000${r.df!==1?' × '+fmt(r.df,0):''}${Number.isFinite(r.total)?' × '+fmt(r.tube,1)+' mL = '+fmt(r.total,0)+' hücre':' = '+fmt(r.conc,0)+' hücre/mL'}</div>`;
     if(r.ok){
       h+=`<div class="recipe main"><span class="title">Karışım: ${r.nMix} kuyuluk tek tüp (önerilen)</span>
         ${pourHTML(volStr(r.mixCell),volStr(r.mixMed))}
@@ -329,9 +332,9 @@ function update(){
 
 function summary(st){
   const t=document.getElementById('sumTable');
-  let h='<thead><tr><th>Hat</th><th>Hücre/mL</th><th>Kuyu: hücre</th><th>Kuyu: medium</th><th>Karışım: hücre</th><th>Karışım: medium</th></tr></thead><tbody>';
+  let h='<thead><tr><th>Hat</th><th>Toplam hücre</th><th>Kuyu: hücre</th><th>Kuyu: medium</th><th>Karışım: hücre</th><th>Karışım: medium</th></tr></thead><tbody>';
   state.lines.forEach((ln,i)=>{const r=results[i];
-    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${sci(r.conc)}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Sayım yok'}</td>`)+'</tr>'});
+    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Sayım yok'}</td>`)+'</tr>'});
   t.innerHTML=h+'</tbody>';
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -351,7 +354,7 @@ document.getElementById('copyBtn').addEventListener('click',()=>{
   state.lines.forEach((ln,i)=>{const r=results[i];
     if(!r){s+=`${ln.name}: sayım yok\n`;return}
     if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
-    s+=`${ln.name}: ${sci(r.conc)} hücre/mL | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium | karışım (${r.nMix}): ${volStr(r.mixCell)} + ${volStr(r.mixMed)}\n`});
+    s+=`${ln.name}: ort ${fmt(r.avg,2)}, toplam ${Number.isFinite(r.total)?fmt(r.total,0):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium | karışım (${r.nMix}): ${volStr(r.mixCell)} + ${volStr(r.mixMed)}\n`});
   const toast=document.getElementById('toast');
   const done=()=>{toast.textContent='Kopyalandı';setTimeout(()=>toast.textContent='',2000)};
   try{navigator.clipboard.writeText(s).then(done,()=>{toast.textContent='Kopyalanamadı, tablodan elle seç.'})}catch(e){toast.textContent='Kopyalanamadı, tablodan elle seç.'}
@@ -364,9 +367,9 @@ function showReset(){
     resetArea.innerHTML='<div class="confirm"><span>Dört hattın sayımları silinsin mi?</span><button class="primary" id="yes">Evet, sıfırla</button><button id="no">Vazgeç</button></div>';
     document.getElementById('no').onclick=showReset;
     document.getElementById('yes').onclick=()=>{
-      state.lines.forEach((l,i)=>{l.sq=['','','',''];l.dead='';l.tube='';
-        for(let j=0;j<4;j++)document.getElementById(`q${i}_${j}`).value='';
-        document.getElementById('d'+i).value='';document.getElementById('t'+i).value='';});
+      state.lines.forEach((l,i)=>{l.sq=Array(8).fill('');l.dead='';
+        for(let j=0;j<8;j++)document.getElementById(`q${i}_${j}`).value='';
+        document.getElementById('d'+i).value='';});
       state.example=false;save();banner();update();showReset();
     };
   });
