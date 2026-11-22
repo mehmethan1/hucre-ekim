@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Sena'nın Ekim Hesabı</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column of cards (one per cell line), each card = hemocytometer 2x2 corner-square inputs + a big result panel; summary + 24-well plate map at the end. */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --surface-2:#f5f7fb; --line:#d6dbe6;
+  --fg:#16192b; --muted:#5b6178;
+  --trypan:#3a3fa0; --trypan-soft:#e3e4f6;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --warn:#9a5b00; --warn-soft:#fdf0d9; --bad:#b3261e; --bad-soft:#fbe4e2;
+  --c1:#2f6fd6; --c2:#7b3fc4; --c3:#0f8a7e; --c4:#c2477a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10121c; --surface:#191c29; --surface-2:#202436; --line:#33384d;
+  --fg:#e9ebf5; --muted:#9aa0b8;
+  --trypan:#9fa4ff; --trypan-soft:#2a2d55;
+  --ok:#5fd39a; --ok-soft:#173327; --warn:#f0b450; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --c1:#6ea0ff; --c2:#b88cf0; --c3:#4fd1c2; --c4:#f28ab5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10121c; --surface:#191c29; --surface-2:#202436; --line:#33384d;
+  --fg:#e9ebf5; --muted:#9aa0b8;
+  --trypan:#9fa4ff; --trypan-soft:#2a2d55;
+  --ok:#5fd39a; --ok-soft:#173327; --warn:#f0b450; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --c1:#6ea0ff; --c2:#b88cf0; --c3:#4fd1c2; --c4:#f28ab5; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600}
+.eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header{display:flex;flex-direction:column;gap:6px}
+header p{color:var(--muted);max-width:60ch}
+
+details.settings{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+details.settings summary{cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:none;font-weight:600}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary .sumtext{font-weight:400;color:var(--muted);font-size:.85rem;text-align:right}
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.8rem;color:var(--muted);font-weight:500}
+input[type=text]{font:inherit;font-family:var(--mono);font-size:1.1rem;width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--fg)}
+input[type=text]:focus{outline:none;border-color:var(--trypan);box-shadow:0 0 0 3px var(--trypan-soft)}
+input.name{font-family:var(--sans);font-weight:600}
+
+.banner{background:var(--trypan-soft);color:var(--fg);border-radius:10px;padding:12px 14px;font-size:.9rem;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;font-weight:600}
+button:focus-visible{outline:3px solid var(--trypan);outline-offset:2px}
+button.primary{background:var(--trypan);border-color:var(--trypan);color:var(--surface)}
+button.ghost{background:transparent}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.card-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.card-head input.name{border:none;background:transparent;padding:4px 0;font-size:1.15rem}
+.card-head input.name:focus{box-shadow:none;border-bottom:2px solid var(--trypan);border-radius:0}
+.card-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+
+/* hemocytometer: 4 corner squares */
+.hemo{display:grid;grid-template-columns:1fr 1fr;gap:0;border:2px solid var(--trypan);border-radius:6px;overflow:hidden;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:12px 12px}
+.sq{padding:10px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--trypan);background:color-mix(in srgb,var(--surface) 82%,transparent)}
+.sq label{font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.sq input{font-size:1.4rem;text-align:center;padding:8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{padding:6px 10px;border-radius:999px;font-size:.85rem;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--trypan);border-color:var(--trypan);color:var(--surface)}
+.chips input{width:70px;padding:6px 8px;font-size:.95rem}
+
+.result{background:var(--surface-2);border-top:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .v{font-family:var(--mono);font-size:1.05rem;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.stat .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.recipe{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:14px}
+.recipe.main{border-color:var(--trypan)}
+.recipe .title{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pour{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.pour .part{display:flex;flex-direction:column;min-width:0}
+.pour .big{font-family:var(--mono);font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.pour .lbl{font-size:.82rem;color:var(--muted)}
+.pour .plus{font-size:1.4rem;color:var(--muted)}
+.recipe .then{font-size:.9rem}
+.msgs{display:flex;flex-direction:column;gap:6px}
+.msg{padding:9px 12px;border-radius:8px;font-size:.88rem;border-left:4px solid}
+.msg.ok{background:var(--ok-soft);border-color:var(--ok)}
+.msg.warn{background:var(--warn-soft);border-color:var(--warn)}
+.msg.bad{background:var(--bad-soft);border-color:var(--bad)}
+.empty{color:var(--muted);font-size:.92rem}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--sans);font-weight:600}
+
+.plate{display:grid;grid-template-columns:auto repeat(6,1fr);gap:6px;align-items:center;max-width:420px}
+.plate .rl,.plate .cl{font-family:var(--mono);font-size:.75rem;color:var(--muted);text-align:center}
+.well{aspect-ratio:1;max-width:100%;border-radius:50%;border:2px solid;display:grid;place-items:center;font-size:.6rem;font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+.howto ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+.formula{font-family:var(--mono);background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:.9rem;overflow-x:auto}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.9rem}
+.toast{font-size:.85rem;color:var(--ok)}
+@media (max-width:420px){.set-grid{grid-template-columns:1fr 1fr}.stats{grid-template-columns:1fr 1fr}.pour .big{font-size:1.35rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Hemositometre → kuyu ekimi</span>
+    <h1>Sena'nın Ekim Hesabı</h1>
+    <p>Dört köşe karede saydığın canlı hücreleri yaz, gerisini sayfa hesaplasın. Her hücre hattı için kuyu başına ne kadar süspansiyon ve ne kadar medium koyacağın aşağıda çıkar.</p>
+  </header>
+
+  <details class="settings" id="settings">
+    <summary><span>Deney ayarları</span><span class="sumtext" id="setSummary"></span></summary>
+    <div class="set-grid">
+      <div class="field"><label for="s-cells">Kuyu başı hücre</label><input type="text" inputmode="numeric" id="s-cells"></div>
+      <div class="field"><label for="s-vol">Kuyu başı toplam hacim (µL)</label><input type="text" inputmode="decimal" id="s-vol"></div>
+      <div class="field"><label for="s-wells">Hat başı kuyu sayısı</label><input type="text" inputmode="numeric" id="s-wells"></div>
+      <div class="field"><label for="s-extra">Karışıma fazladan kuyu payı</label><input type="text" inputmode="numeric" id="s-extra"></div>
+    </div>
+  </details>
+
+  <div class="banner" id="exampleBanner" hidden>
+    <span><strong>İlk karttaki sayılar örnek.</strong> Kendi sayımını yazınca ya da temizleyince bu uyarı kaybolur.</span>
+    <button class="ghost" id="clearExample">Örneği temizle</button>
+  </div>
+
+  <div id="cards" class="wrap" style="gap:18px"></div>
+
+  <section class="panel">
+    <h2>Özet</h2>
+    <div class="tbl-wrap"><table id="sumTable"></table></div>
+    <div class="actions">
+      <button class="primary" id="copyBtn">Özeti kopyala</button>
+      <span class="toast" id="toast" role="status"></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>24 kuyulu plaka önerisi</h2>
+    <p class="muted" style="font-size:.9rem">4 hat × 6 kuyu = 24 kuyu. Her sıraya bir hat koymak karışmayı önler.</p>
+    <div class="plate" id="plate"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="panel howto">
+    <h2>Nasıl hesaplıyor?</h2>
+    <div class="formula">hücre/mL = kare ortalaması × seyreltme faktörü × 10.000</div>
+    <div class="formula">kuyuya süspansiyon (µL) = kuyu başı hücre ÷ hücre/mL × 1000</div>
+    <div class="formula">medium (µL) = kuyu hacmi − süspansiyon</div>
+    <ol>
+      <li><strong>Seyreltme faktörü:</strong> 10 µL hücre + 10 µL trypan blue koyduysan 1:1 olur, faktör 2'dir. Trypan blue koymadan saydıysan faktör 1'dir.</li>
+      <li><strong>Seyreltmeli miyim?</strong> Büyük karede 20–100 hücre varsa sayım güvenilirdir. 100'ü geçerse hücreler üst üste biner, örneği daha çok seyreltip yeniden say ve faktörü güncelle. 20'nin altındaysa sayım güvenilmez.</li>
+      <li><strong>Karışım yöntemi:</strong> Her kuyuya ayrı ayrı pipetlemek yerine bir hattın tüm kuyuları için süspansiyon ve mediumu tek tüpte karıştır, sonra her kuyuya toplam hacmi dağıt. Hem daha hızlı hem daha doğru. Fazladan kuyu payı pipet kaybını karşılar.</li>
+    </ol>
+  </section>
+
+  <section class="panel">
+    <div class="actions" id="resetArea">
+      <button id="resetBtn">Tüm sayımları sıfırla</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const COLORS=['--c1','--c2','--c3','--c4'];
+const DEFAULT_LINES=['CCLP','R-CCLP','HuCCT','R-HuCCT'];
+const STORE='sena-ekim-v1';
+const fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+const parse=v=>{if(v==null)return NaN;const s=String(v).trim().replace(/\./g,'').replace(',', '.');if(s==='')return NaN;return Number(s)};
+const parseDec=v=>{if(v==null)return NaN;const s=String(v).trim().replace(',', '.');if(s==='')return NaN;return Number(s)};
+const sci=n=>{if(!Number.isFinite(n)||n<=0)return '–';const e=Math.floor(Math.log10(n));const m=n/Math.pow(10,e);return fmt(m,2)+' × 10'+sup(e)};
+const sup=e=>String(e).split('').map(c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)]||c).join('');
+
+function blankLine(name){return {name,sq:['','','',''],dead:'',df:'2',tube:''}}
+function defaults(){
+  const lines=DEFAULT_LINES.map(blankLine);
+  lines[0].sq=['46','52','49','55'];lines[0].dead='9';lines[0].tube='5';
+  return {settings:{cells:'350000',vol:'500',wells:'6',extra:'1'},lines,example:true};
+}
+let state;
+try{state=JSON.parse(localStorage.getItem(STORE))}catch(e){state=null}
+if(!state||!state.lines||state.lines.length!==4)state=defaults();
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
+
+// settings
+const S={cells:'s-cells',vol:'s-vol',wells:'s-wells',extra:'s-extra'};
+for(const k in S){const el=document.getElementById(S[k]);el.value=state.settings[k];el.addEventListener('input',()=>{state.settings[k]=el.value;save();update()})}
+function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:parse(state.settings.extra)||0}}
+
+// cards
+const cardsEl=document.getElementById('cards');
+const refs=[];
+state.lines.forEach((ln,i)=>{
+  const c=document.createElement('article');c.className='card';
+  const col=`var(${COLORS[i]})`;
+  c.innerHTML=`
+  <div class="card-head"><span class="dot" style="background:${col}"></span>
+    <input type="text" class="name" id="n${i}" aria-label="Hücre hattı adı"></div>
+  <div class="card-body">
+    <div>
+      <div class="eyebrow" style="margin-bottom:6px">Canlı hücre sayısı (4 köşe kare)</div>
+      <div class="hemo">
+        ${['Sol üst','Sağ üst','Sol alt','Sağ alt'].map((t,j)=>`<div class="sq"><label for="q${i}_${j}">${t}</label><input type="text" inputmode="numeric" id="q${i}_${j}" placeholder="0"></div>`).join('')}
+      </div>
+    </div>
+    <div class="field"><span class="eyebrow">Seyreltme faktörü (trypan blue)</span>
+      <div class="chips" id="df${i}">
+        <button type="button" class="chip" data-v="1">Yok · 1</button>
+        <button type="button" class="chip" data-v="2">1:1 · 2</button>
+        <button type="button" class="chip" data-v="4">1:3 · 4</button>
+        <button type="button" class="chip" data-v="10">1:9 · 10</button>
+        <input type="text" inputmode="decimal" id="dfc${i}" aria-label="Özel seyreltme faktörü" placeholder="diğer">
+      </div></div>
+    <div class="row2">
+      <div class="field"><label for="d${i}">Ölü (mavi) hücre, 4 kare toplam <span class="muted">(isteğe bağlı)</span></label><input type="text" inputmode="numeric" id="d${i}" placeholder="–"></div>
+      <div class="field"><label for="t${i}">Tüpteki süspansiyon (mL) <span class="muted">(isteğe bağlı)</span></label><input type="text" inputmode="decimal" id="t${i}" placeholder="–"></div>
+    </div>
+  </div>
+  <div class="result" id="r${i}" aria-live="polite"></div>`;
+  cardsEl.appendChild(c);
+  const name=c.querySelector('#n'+i);name.value=ln.name;
+  name.addEventListener('input',()=>{ln.name=name.value;save();update()});
+  for(let j=0;j<4;j++){const q=c.querySelector(`#q${i}_${j}`);q.value=ln.sq[j];q.addEventListener('input',()=>{ln.sq[j]=q.value;touch(i);save();update()})}
+  const d=c.querySelector('#d'+i);d.value=ln.dead;d.addEventListener('input',()=>{ln.dead=d.value;touch(i);save();update()});
+  const t=c.querySelector('#t'+i);t.value=ln.tube;t.addEventListener('input',()=>{ln.tube=t.value;touch(i);save();update()});
+  const chips=c.querySelectorAll('.chip');const dfc=c.querySelector('#dfc'+i);
+  const syncDf=()=>{let m=false;chips.forEach(b=>{const on=b.dataset.v===String(ln.df);b.setAttribute('aria-pressed',on);if(on)m=true});dfc.value=m?'':ln.df};
+  chips.forEach(b=>b.addEventListener('click',()=>{ln.df=b.dataset.v;syncDf();save();update()}));
+  dfc.addEventListener('input',()=>{ln.df=dfc.value||'2';chips.forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===String(ln.df)&&dfc.value===''));save();update()});
+  syncDf();
+  refs.push({res:c.querySelector('#r'+i)});
+});
+function touch(i){if(i===0&&state.example){state.example=false;banner()}}
+function banner(){document.getElementById('exampleBanner').hidden=!state.example}
+document.getElementById('clearExample').addEventListener('click',()=>{
+  const l=state.lines[0];l.sq=['','','',''];l.dead='';l.tube='';state.example=false;
+  for(let j=0;j<4;j++)document.getElementById(`q0_${j}`).value='';
+  document.getElementById('d0').value='';document.getElementById('t0').value='';
+  save();banner();update();
+});
+
+function calc(ln,st){
+  const vals=ln.sq.map(parse).filter(Number.isFinite);
+  const n=vals.length;if(!n)return null;
+  const sum=vals.reduce((a,b)=>a+b,0),avg=sum/n;
+  const df=parseDec(ln.df)||1;
+  const conc=avg*df*1e4;
+  const sd=n>1?Math.sqrt(vals.reduce((a,b)=>a+(b-avg)**2,0)/(n-1)):0;
+  const cv=avg>0?sd/avg:0;
+  const dead=parse(ln.dead);
+  const viab=Number.isFinite(dead)&&sum+dead>0?sum/(sum+dead):NaN;
+  const cellVol=conc>0?st.cells/conc*1000:Infinity;
+  const medVol=st.vol-cellVol;
+  const nMix=(st.wells||0)+(st.extra||0);
+  const mixCell=cellVol*nMix, mixMed=st.vol*nMix-mixCell;
+  const tube=parseDec(ln.tube);
+  const avail=Number.isFinite(tube)?conc*tube:NaN;
+  const need=st.cells*nMix;
+  const msgs=[];
+  if(avg>100)msgs.push(['warn',`Kare başı ortalama ${fmt(avg,0)} hücre. Bu kalabalık, sayım hatası artar. Örneği daha çok seyreltip (ör. 1:3, faktör 4) yeniden say.`]);
+  else if(avg<20&&avg>0)msgs.push(['warn',`Kare başı ortalama ${fmt(avg,0)} hücre. Bu az, sayım güvenilirliği düşük. Mümkünse daha fazla kare say ya da daha az seyrelt.`]);
+  if(n>=3&&cv>0.25)msgs.push(['warn',`Kareler arasında fark büyük (%${fmt(cv*100,0)}). Süspansiyonu iyice pipetleyip karıştır, hemositometreyi yeniden yükle.`]);
+  if(n<4)msgs.push(['warn',`${n} kare girildi; ortalama bu ${n} kareden alındı.`]);
+  if(Number.isFinite(viab)&&viab<0.8)msgs.push(['warn',`Canlılık %${fmt(viab*100,0)}. %80'in altı genelde düşük kabul edilir, hocana danış.`]);
+  if(cellVol>st.vol)msgs.push(['bad',`Süspansiyon çok seyreltik: bir kuyuya ${fmt(cellVol,0)} µL gerekiyor, bu kuyu hacmini (${fmt(st.vol,0)} µL) aşıyor. Hücreleri santrifüjleyip daha az mediumda topla, sonra yeniden say.`]);
+  else if(cellVol<2)msgs.push(['warn',`Kuyu başı ${fmt(cellVol,1)} µL çok az, pipetlemesi zor. Karışım yöntemini kullan ya da süspansiyonu önce seyrelt.`]);
+  if(Number.isFinite(avail)&&avail<need)msgs.push(['bad',`Tüpte yaklaşık ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yetmiyor.`]);
+  else if(Number.isFinite(avail))msgs.push(['ok',`Tüpte yaklaşık ${fmt(avail,0)} hücre var, ${fmt(need,0)} gerekiyor. Yeterli.`]);
+  if(!msgs.some(m=>m[0]!=='ok')&&msgs.length===0)msgs.push(['ok','Sayım aralığı uygun.']);
+  return {n,avg,df,conc,cv,viab,cellVol,medVol,nMix,mixCell,mixMed,avail,need,msgs,ok:cellVol<=st.vol};
+}
+
+function pourHTML(a,b){return `<div class="pour"><div class="part"><span class="big">${a}</span><span class="lbl">hücre süspansiyonu</span></div><span class="plus">+</span><div class="part"><span class="big">${b}</span><span class="lbl">medium</span></div></div>`}
+const volStr=v=>v>=1000?fmt(v/1000,3)+' mL':fmt(v,1)+' µL';
+
+let results=[];
+function update(){
+  const st=settings();
+  document.getElementById('setSummary').textContent=`${fmt(st.cells)} hücre · ${fmt(st.vol)} µL · ${fmt(st.wells)} kuyu`;
+  results=state.lines.map((ln,i)=>{
+    const r=calc(ln,st);const el=refs[i].res;
+    if(!r){el.innerHTML='<p class="empty">Kare sayılarını girince sonuç burada çıkar.</p>';return null}
+    let h=`<div class="stats">
+      <div class="stat"><span class="k">Hücre/mL</span><span class="v">${sci(r.conc)}</span></div>
+      <div class="stat"><span class="k">Kare ort.</span><span class="v">${fmt(r.avg,1)}</span></div>
+      <div class="stat"><span class="k">Canlılık</span><span class="v">${Number.isFinite(r.viab)?'%'+fmt(r.viab*100,0):'–'}</span></div></div>`;
+    if(r.ok){
+      h+=`<div class="recipe main"><span class="title">Karışım: ${r.nMix} kuyuluk tek tüp (önerilen)</span>
+        ${pourHTML(volStr(r.mixCell),volStr(r.mixMed))}
+        <p class="then">İyice karıştır, sonra <strong>her kuyuya ${fmt(st.vol,0)} µL</strong> dağıt (${fmt(st.wells)} kuyu).</p></div>
+        <div class="recipe"><span class="title">Ya da kuyu kuyu</span>
+        ${pourHTML(fmt(r.cellVol,1)+' µL',fmt(r.medVol,1)+' µL')}</div>`;
+    }
+    h+=`<div class="msgs">${r.msgs.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('')}</div>`;
+    el.innerHTML=h;return r;
+  });
+  summary(st);plate();
+}
+
+function summary(st){
+  const t=document.getElementById('sumTable');
+  let h='<thead><tr><th>Hat</th><th>Hücre/mL</th><th>Kuyu: hücre</th><th>Kuyu: medium</th><th>Karışım: hücre</th><th>Karışım: medium</th></tr></thead><tbody>';
+  state.lines.forEach((ln,i)=>{const r=results[i];
+    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${sci(r.conc)}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td><td>${volStr(r.mixCell)}</td><td>${volStr(r.mixMed)}</td>`:`<td colspan="5" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Sayım yok'}</td>`)+'</tr>'});
+  t.innerHTML=h+'</tbody>';
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function plate(){
+  const p=document.getElementById('plate');let h='<span></span>';
+  for(let c=1;c<=6;c++)h+=`<span class="cl">${c}</span>`;
+  'ABCD'.split('').forEach((r,i)=>{h+=`<span class="rl">${r}</span>`;
+    for(let c=1;c<=6;c++)h+=`<span class="well" style="border-color:var(${COLORS[i]});background:color-mix(in srgb,var(${COLORS[i]}) 22%,transparent);color:var(--fg)">${r}${c}</span>`});
+  p.innerHTML=h;
+  document.getElementById('legend').innerHTML=state.lines.map((l,i)=>`<span><span class="dot" style="background:var(${COLORS[i]})"></span>${'ABCD'[i]}: ${esc(l.name)}</span>`).join('');
+}
+
+document.getElementById('copyBtn').addEventListener('click',()=>{
+  const st=settings();
+  let s=`Ekim hesabı (${fmt(st.cells)} hücre/kuyu, ${fmt(st.vol)} µL)\n`;
+  state.lines.forEach((ln,i)=>{const r=results[i];
+    if(!r){s+=`${ln.name}: sayım yok\n`;return}
+    if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
+    s+=`${ln.name}: ${sci(r.conc)} hücre/mL | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium | karışım (${r.nMix}): ${volStr(r.mixCell)} + ${volStr(r.mixMed)}\n`});
+  const toast=document.getElementById('toast');
+  const done=()=>{toast.textContent='Kopyalandı';setTimeout(()=>toast.textContent='',2000)};
+  try{navigator.clipboard.writeText(s).then(done,()=>{toast.textContent='Kopyalanamadı, tablodan elle seç.'})}catch(e){toast.textContent='Kopyalanamadı, tablodan elle seç.'}
+});
+
+const resetArea=document.getElementById('resetArea');
+function showReset(){
+  resetArea.innerHTML='<button id="resetBtn">Tüm sayımları sıfırla</button>';
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    resetArea.innerHTML='<div class="confirm"><span>Dört hattın sayımları silinsin mi?</span><button class="primary" id="yes">Evet, sıfırla</button><button id="no">Vazgeç</button></div>';
+    document.getElementById('no').onclick=showReset;
+    document.getElementById('yes').onclick=()=>{
+      state.lines.forEach((l,i)=>{l.sq=['','','',''];l.dead='';l.tube='';
+        for(let j=0;j<4;j++)document.getElementById(`q${i}_${j}`).value='';
+        document.getElementById('d'+i).value='';document.getElementById('t'+i).value='';});
+      state.example=false;save();banner();update();showReset();
+    };
+  });
+}
+showReset();banner();update();
+})();
+</script>
+</body>
+</html>
