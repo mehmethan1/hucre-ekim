@@ -176,7 +176,8 @@ td:first-child{font-family:var(--sans);font-weight:600}
     <div class="formula">kuyuya süspansiyon (µL) = kuyu başı hücre ÷ hücre/mL × 1000</div>
     <div class="formula">medium (µL) = kuyu hacmi − süspansiyon</div>
     <ol>
-      <li><strong>Seyreltme faktörü:</strong> 10 µL hücre + 10 µL trypan blue koyduysan 1:1 olur, faktör 2'dir. Trypan blue koymadan saydıysan faktör 1'dir.</li>
+      <li><strong>Seyreltme faktörü:</strong> Hücreleri 6 mL mediumda toplayıp tüpten direkt hemositometreye koyduysan faktör 1'dir (varsayılan). 10 µL hücre + 10 µL trypan blue karıştırdıysan faktör 2'dir.</li>
+      <li><strong>6 mL'de toplayınca:</strong> 350.000 hücre 500 µL'ye sığsın diye tüpte en az 700.000 hücre/mL gerekir. Bu, büyük karede ortalama 70 hücre demek. Altındaysa santrifüjleyip daha az mediumda topla.</li>
       <li><strong>Seyreltmeli miyim?</strong> Büyük karede 20–100 hücre varsa sayım güvenilirdir. 100'ü geçerse hücreler üst üste biner, örneği daha çok seyreltip yeniden say ve faktörü güncelle. 20'nin altındaysa sayım güvenilmez.</li>
       <li><strong>Karışım yöntemi:</strong> Her kuyuya ayrı ayrı pipetlemek yerine bir hattın tüm kuyuları için süspansiyon ve mediumu tek tüpte karıştır, sonra her kuyuya toplam hacmi dağıt. Hem daha hızlı hem daha doğru. Fazladan kuyu payı pipet kaybını karşılar.</li>
     </ol>
@@ -193,17 +194,17 @@ td:first-child{font-family:var(--sans);font-weight:600}
 (function(){
 const COLORS=['--c1','--c2','--c3','--c4'];
 const DEFAULT_LINES=['CCLP','R-CCLP','HuCCT','R-HuCCT'];
-const STORE='sena-ekim-v1';
+const STORE='sena-ekim-v2';
 const fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
 const parse=v=>{if(v==null)return NaN;const s=String(v).trim().replace(/\./g,'').replace(',', '.');if(s==='')return NaN;return Number(s)};
 const parseDec=v=>{if(v==null)return NaN;const s=String(v).trim().replace(',', '.');if(s==='')return NaN;return Number(s)};
 const sci=n=>{if(!Number.isFinite(n)||n<=0)return '–';const e=Math.floor(Math.log10(n));const m=n/Math.pow(10,e);return fmt(m,2)+' × 10'+sup(e)};
 const sup=e=>String(e).split('').map(c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)]||c).join('');
 
-function blankLine(name){return {name,sq:['','','',''],dead:'',df:'2',tube:''}}
+function blankLine(name){return {name,sq:['','','',''],dead:'',df:'1',tube:'6'}}
 function defaults(){
   const lines=DEFAULT_LINES.map(blankLine);
-  lines[0].sq=['46','52','49','55'];lines[0].dead='9';lines[0].tube='5';
+  lines[0].sq=['88','95','91','97'];
   return {settings:{cells:'350000',vol:'500',wells:'6',extra:'1'},lines,example:true};
 }
 let state;
@@ -232,17 +233,17 @@ state.lines.forEach((ln,i)=>{
         ${['Sol üst','Sağ üst','Sol alt','Sağ alt'].map((t,j)=>`<div class="sq"><label for="q${i}_${j}">${t}</label><input type="text" inputmode="numeric" id="q${i}_${j}" placeholder="0"></div>`).join('')}
       </div>
     </div>
-    <div class="field"><span class="eyebrow">Seyreltme faktörü (trypan blue)</span>
+    <div class="field"><span class="eyebrow">Sayımdan önce ek seyreltme</span>
       <div class="chips" id="df${i}">
-        <button type="button" class="chip" data-v="1">Yok · 1</button>
+        <button type="button" class="chip" data-v="1">Yok, tüpten direkt · 1</button>
         <button type="button" class="chip" data-v="2">1:1 · 2</button>
         <button type="button" class="chip" data-v="4">1:3 · 4</button>
         <button type="button" class="chip" data-v="10">1:9 · 10</button>
         <input type="text" inputmode="decimal" id="dfc${i}" aria-label="Özel seyreltme faktörü" placeholder="diğer">
       </div></div>
     <div class="row2">
-      <div class="field"><label for="d${i}">Ölü (mavi) hücre, 4 kare toplam <span class="muted">(isteğe bağlı)</span></label><input type="text" inputmode="numeric" id="d${i}" placeholder="–"></div>
-      <div class="field"><label for="t${i}">Tüpteki süspansiyon (mL) <span class="muted">(isteğe bağlı)</span></label><input type="text" inputmode="decimal" id="t${i}" placeholder="–"></div>
+      <div class="field"><label for="d${i}">Ölü (mavi) hücre, 4 kare toplam <span class="muted">(sadece trypan blue ile)</span></label><input type="text" inputmode="numeric" id="d${i}" placeholder="–"></div>
+      <div class="field"><label for="t${i}">Hücreleri topladığın hacim (mL)</label><input type="text" inputmode="decimal" id="t${i}" placeholder="–"></div>
     </div>
   </div>
   <div class="result" id="r${i}" aria-live="polite"></div>`;
