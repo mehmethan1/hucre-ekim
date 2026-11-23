@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PCR Master Mix</title>
+<meta name="theme-color" content="#3a3fa0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="ortak.css">
+<style>
+.summary{font-family:var(--mono);font-size:.92rem;background:var(--surface-2);border-radius:8px;padding:10px 12px;overflow-wrap:anywhere}
+.summary strong{color:var(--accent)}
+.mix td.total{font-weight:700;color:var(--accent);font-size:1.02rem}
+.mix tr.done td{opacity:.45;text-decoration:line-through}
+.mix tr.done td:first-child{text-decoration:none}
+.mix tr.tpl td{color:var(--muted)}
+.mix td.ck{width:34px;padding-right:0}
+.mix th:nth-child(2),.mix td.name{text-align:left;white-space:normal}
+.mix td.ck input{width:22px;height:22px;accent-color:var(--accent);margin:0}
+.mix tfoot td{font-weight:700;border-bottom:none}
+.comp{display:grid;grid-template-columns:1fr 92px auto;gap:8px;align-items:end;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.comp .opts{grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.comp .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.comp .opts input{width:18px;height:18px;accent-color:var(--accent)}
+.comp input[readonly]{opacity:.7}
+.big-n{font-family:var(--mono);font-size:2rem;font-weight:600;line-height:1;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Ana menü</a>
+  <header>
+    <span class="eyebrow">Reaksiyon hazırlığı</span>
+    <h1>PCR / qPCR master mix</h1>
+    <p>Örnek ve tekrar sayısını gir, her bileşenden tüpe ne kadar koyacağın çıksın. Pipetlerken satırlara dokunup işaretleyebilirsin.</p>
+  </header>
+
+  <section class="panel">
+    <div class="field"><label for="recipe">Tarif</label><select id="recipe"></select></div>
+    <div class="grid2">
+      <div class="field"><label for="samples">Örnek sayısı</label><input type="text" class="mono" inputmode="numeric" id="samples"></div>
+      <div class="field"><label for="genes">Gen (primer çifti) sayısı</label><input type="text" class="mono" inputmode="numeric" id="genes"></div>
+    </div>
+    <div class="field"><span class="lbl">Tekrar (replicate)</span><div class="chips" id="reps"></div></div>
+    <div class="grid2">
+      <label class="check small" style="align-items:center"><input type="checkbox" id="ntc"> NTC kuyusu ekle (kalıp yerine su)</label>
+      <div class="field"><label for="extra">Pipet payı (%)</label><input type="text" class="mono" inputmode="decimal" id="extra"></div>
+    </div>
+    <div class="summary" id="sumline"></div>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+      <div><span class="eyebrow">Karışım tüpü</span><h2 id="mixTitle">Master mix</h2></div>
+      <div style="text-align:right"><div class="big-n" id="mixN"></div><span class="muted small">reaksiyonluk</span></div>
+    </div>
+    <div class="tbl-wrap"><table class="mix" id="mix"></table></div>
+    <div id="msgs" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div class="actions">
+      <button class="primary" id="copy">Listeyi kopyala</button>
+      <button id="uncheck">İşaretleri temizle</button>
+      <span class="toast" id="toast" role="status"></span>
+    </div>
+  </section>
+
+  <details class="more" id="edit">
+    <summary>Tarifi düzenle (kit hacimleri)</summary>
+    <div class="in">
+      <p class="muted small">Hazır tarifler örnektir. Kendi kitinin kılavuzundaki hacimleri yaz. Su satırı, toplam hacme tamamlanacak şekilde kendiliğinden hesaplanır.</p>
+      <div class="field" style="max-width:220px"><label for="total">1 reaksiyonun toplam hacmi (µL)</label><input type="text" class="mono" inputmode="decimal" id="total"></div>
+      <div id="comps" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div class="actions"><button id="addComp">+ Bileşen ekle</button></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+        <div class="field"><label for="saveName">Bu tarifi kaydet</label><input type="text" id="saveName" placeholder="ör. GAPDH qPCR – kendi kitim"></div>
+        <div class="actions"><button class="primary" id="saveBtn">Kaydet</button><button class="danger" id="delBtn" hidden>Bu kayıtlı tarifi sil</button><span class="toast" id="toast2" role="status"></span></div>
+      </div>
+    </div>
+  </details>
+</div>
+
+<script src="ortak.js"></script>
+<script>
+(function(){
+const {fmt,num,esc,load,save}=Lab;
+const KEY='sena-pcr-v1';
+const W=n=>({name:n||'Nükleaz içermeyen su',vol:'',water:true});
+const BUILTIN={
+  sybr20:{name:'qPCR · SYBR Green · 20 µL',total:'20',comps:[{name:'2X SYBR Green Master Mix',vol:'10'},{name:'Forward primer (10 µM)',vol:'0,5'},{name:'Reverse primer (10 µM)',vol:'0,5'},W(),{name:'cDNA',vol:'2',tpl:true}]},
+  sybr10:{name:'qPCR · SYBR Green · 10 µL',total:'10',comps:[{name:'2X SYBR Green Master Mix',vol:'5'},{name:'Forward primer (10 µM)',vol:'0,25'},{name:'Reverse primer (10 µM)',vol:'0,25'},W(),{name:'cDNA',vol:'1',tpl:true}]},
+  pcr25:{name:'Klasik PCR · 2X Taq mix · 25 µL',total:'25',comps:[{name:'2X Taq PCR Master Mix',vol:'12,5'},{name:'Forward primer (10 µM)',vol:'1'},{name:'Reverse primer (10 µM)',vol:'1'},W(),{name:'DNA kalıp',vol:'1',tpl:true}]},
+  pcr50:{name:'Klasik PCR · ayrı bileşenler · 50 µL',total:'50',comps:[{name:'10X PCR buffer',vol:'5'},{name:'MgCl₂ (25 mM)',vol:'3'},{name:'dNTP mix (10 mM)',vol:'1'},{name:'Forward primer (10 µM)',vol:'2'},{name:'Reverse primer (10 µM)',vol:'2'},{name:'Taq polimeraz (5 U/µL)',vol:'0,25'},W(),{name:'DNA kalıp',vol:'2',tpl:true}]}
+};
+const clone=o=>JSON.parse(JSON.stringify(o));
+let st=load(KEY,null);
+if(!st||!st.comps){st={recipe:'sybr20',samples:'6',reps:'3',genes:'1',ntc:true,extra:'10',total:BUILTIN.sybr20.total,comps:clone(BUILTIN.sybr20.comps),checks:{},saved:[]}}
+const persist=()=>save(KEY,st);
+const $=id=>document.getElementById(id);
+
+// ---- tarif seçimi
+function fillRecipes(){
+  const r=$('recipe');let h='<optgroup label="Hazır tarifler">'+Object.entries(BUILTIN).map(([k,v])=>`<option value="${k}">${esc(v.name)}</option>`).join('')+'</optgroup>';
+  if(st.saved.length)h+='<optgroup label="Kaydettiklerim">'+st.saved.map((s,i)=>`<option value="s${i}">${esc(s.name)}</option>`).join('')+'</optgroup>';
+  h+='<option value="custom">Düzenlenmiş tarif</option>';
+  r.innerHTML=h;r.value=st.recipe;if(!r.value){r.value='custom';st.recipe='custom'}
+  $('delBtn').hidden=!/^s\d+$/.test(st.recipe);
+}
+$('recipe').addEventListener('change',e=>{
+  const v=e.target.value;let src=null;
+  if(BUILTIN[v])src=BUILTIN[v];else if(/^s\d+$/.test(v))src=st.saved[+v.slice(1)];
+  st.recipe=v;if(src){st.total=src.total;st.comps=clone(src.comps);st.checks={}}
+  persist();fillRecipes();renderComps();update();
+});
+
+// ---- girişler
+['samples','genes','extra'].forEach(k=>{const el=$(k);el.value=st[k];el.addEventListener('input',()=>{st[k]=el.value;persist();update()})});
+$('ntc').checked=!!st.ntc;$('ntc').addEventListener('change',e=>{st.ntc=e.target.checked;persist();update()});
+const repsEl=$('reps');
+function renderReps(){repsEl.innerHTML=['1','2','3','4'].map(n=>`<button type="button" class="sm" data-r="${n}" aria-pressed="${st.reps===n}">${n === '1' ? 'Tekli' : n === '2' ? 'Duplicate (2)' : n === '3' ? 'Triplicate (3)' : '4'}</button>`).join('')}
+repsEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.reps=b.dataset.r;persist();renderReps();update()});
+$('total').value=st.total;$('total').addEventListener('input',e=>{st.total=e.target.value;markCustom();persist();update();syncWater()});
+
+// ---- bileşen düzenleme
+function markCustom(){if(st.recipe!=='custom'&&!/^s\d+$/.test(st.recipe)){st.recipe='custom';fillRecipes()}}
+function vols(){
+  const total=num(st.total);
+  const fixed=st.comps.filter(c=>!c.water).reduce((a,c)=>a+(num(c.vol)||0),0);
+  const nW=st.comps.filter(c=>c.water).length;
+  const water=nW?(total-fixed)/nW:0;
+  return st.comps.map(c=>c.water?water:num(c.vol));
+}
+function renderComps(){
+  const box=$('comps');const v=vols();
+  box.innerHTML=st.comps.map((c,i)=>`<div class="comp" data-i="${i}">
+    <div class="field"><label for="cn${i}">Bileşen</label><input type="text" id="cn${i}" data-k="name" value="${esc(c.name)}"></div>
+    <div class="field"><label for="cv${i}">µL / reaksiyon</label><input type="text" class="mono" inputmode="decimal" id="cv${i}" data-k="vol" ${c.water?'readonly':''} value="${c.water?(Number.isFinite(v[i])?fmt(v[i],2):''):esc(c.vol)}"></div>
+    <button type="button" class="ghost sm danger" data-del="${i}" aria-label="${esc(c.name)} sil">Sil</button>
+    <div class="opts">
+      <label><input type="checkbox" data-k="water" ${c.water?'checked':''}> Kalanı bununla tamamla (su)</label>
+      <label><input type="checkbox" data-k="tpl" ${c.tpl?'checked':''}> Karışıma girmez, kuyuya ayrı eklenir</label>
+    </div></div>`).join('');
+}
+function syncWater(){const v=vols();st.comps.forEach((c,i)=>{if(c.water){const el=$('cv'+i);if(el)el.value=Number.isFinite(v[i])?fmt(v[i],2):''}})}
+$('comps').addEventListener('input',e=>{
+  const row=e.target.closest('.comp');if(!row)return;const i=+row.dataset.i,k=e.target.dataset.k;
+  if(k==='name'||k==='vol'){st.comps[i][k]=e.target.value}
+  else if(k==='water'){st.comps[i].water=e.target.checked;if(e.target.checked)st.comps[i].tpl=false;renderComps()}
+  else if(k==='tpl'){st.comps[i].tpl=e.target.checked;if(e.target.checked)st.comps[i].water=false;renderComps()}
+  markCustom();persist();update();if(k!=='water')syncWater();
+});
+$('comps').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;st.comps.splice(+b.dataset.del,1);st.checks={};markCustom();persist();renderComps();update()});
+$('addComp').addEventListener('click',()=>{const tplIdx=st.comps.findIndex(c=>c.tpl);const c={name:'',vol:''};
+  if(tplIdx>=0)st.comps.splice(tplIdx,0,c);else st.comps.push(c);markCustom();persist();renderComps();update();
+  const i=st.comps.indexOf(c);$('cn'+i).focus()});
+$('saveBtn').addEventListener('click',()=>{
+  const name=$('saveName').value.trim();const t=$('toast2');
+  if(!name){t.style.color='var(--bad)';t.textContent='Önce bir ad yaz.';return}
+  const ex=st.saved.findIndex(s=>s.name===name);const rec={name,total:st.total,comps:clone(st.comps)};
+  if(ex>=0)st.saved[ex]=rec;else st.saved.push(rec);
+  st.recipe='s'+(ex>=0?ex:st.saved.length-1);persist();fillRecipes();$('saveName').value='';
+  t.style.color='';t.textContent='Kaydedildi';setTimeout(()=>t.textContent='',2000);
+});
+$('delBtn').addEventListener('click',()=>{if(!/^s\d+$/.test(st.recipe))return;st.saved.splice(+st.recipe.slice(1),1);st.recipe='custom';persist();fillRecipes()});
+
+// ---- hesap
+let last=null;
+function calc(){
+  const samples=Math.max(0,Math.floor(num(st.samples)||0)),reps=Number(st.reps)||1,genes=Math.max(1,Math.floor(num(st.genes)||1));
+  const ntc=st.ntc?1:0,pct=Math.max(0,num(st.extra)||0);
+  const rxn=(samples+ntc)*reps;
+  let mixN=Math.ceil(rxn*(1+pct/100)-1e-9);if(pct>0&&rxn>0&&mixN===rxn)mixN=rxn+1;
+  const v=vols();
+  const rows=st.comps.map((c,i)=>({name:c.name||'(adsız)',per:v[i],tpl:!!c.tpl,water:!!c.water,mix:v[i]*mixN,all:v[i]*mixN*genes,i}));
+  const perWell=rows.filter(r=>!r.tpl).reduce((a,r)=>a+(r.per||0),0);
+  const tplVol=rows.filter(r=>r.tpl).reduce((a,r)=>a+(r.per||0),0);
+  return {samples,reps,genes,ntc,pct,rxn,mixN,rows,perWell,tplVol,wells:rxn*genes,total:num(st.total)};
+}
+function update(){
+  const r=last=calc();
+  $('sumline').innerHTML=`(${r.samples} örnek${r.ntc?' + 1 NTC':''}) × ${r.reps} tekrar = <strong>${r.rxn}</strong> reaksiyon${r.genes>1?' / gen':''}<br>%${fmt(r.pct,0)} pipet payı ile → <strong>${r.mixN}</strong> reaksiyonluk karışım${r.genes>1?`<br>${r.genes} gen × ${r.rxn} = <strong>${r.wells}</strong> kuyu`:''}`;
+  $('mixN').textContent=r.mixN;
+  $('mixTitle').textContent=r.genes>1?`Her gen için ayrı tüp (${r.genes} tüp)`:'Master mix';
+  const G=r.genes>1;
+  let h=`<thead><tr><th></th><th>Bileşen</th><th>1 reaks.</th><th>Tüpe (×${r.mixN})</th>${G?`<th>${r.genes} gen toplam</th>`:''}</tr></thead><tbody>`;
+  r.rows.filter(x=>!x.tpl).forEach(x=>{const done=!!st.checks[x.i];
+    h+=`<tr class="${done?'done':''}"><td class="ck"><input type="checkbox" data-ck="${x.i}" ${done?'checked':''} aria-label="${esc(x.name)} eklendi"></td><td class="name">${esc(x.name)}</td><td>${fmt(x.per,2)}</td><td class="total">${fmt(x.mix,1)} µL</td>${G?`<td>${fmt(x.all,1)} µL</td>`:''}</tr>`});
+  h+=`</tbody><tfoot><tr><td></td><td class="name">Karışım toplamı</td><td>${fmt(r.perWell,2)}</td><td>${fmt(r.perWell*r.mixN,1)} µL</td>${G?`<td>${fmt(r.perWell*r.mixN*r.genes,1)} µL</td>`:''}</tr></tfoot>`;
+  $('mix').innerHTML=h;
+  const m=[];
+  const neg=r.rows.find(x=>x.water&&x.per<0);
+  if(neg)m.push(['bad',`Bileşenlerin toplamı ${fmt(r.total,1)} µL'yi aşıyor, su eksi çıkıyor. Hacimleri ya da toplam hacmi düzelt.`]);
+  if(r.rows.some(x=>!Number.isFinite(x.per)))m.push(['warn','Bazı bileşenlerin hacmi boş. "Tarifi düzenle" bölümünden doldur.']);
+  if(r.rxn===0)m.push(['warn','Örnek sayısını gir.']);
+  else{
+    const tplNames=r.rows.filter(x=>x.tpl).map(x=>x.name).join(' + ')||'kalıp';
+    m.push(['info',`Her kuyuya <strong>${fmt(r.perWell,1)} µL</strong> karışım dağıt, sonra <strong>${fmt(r.tplVol,1)} µL ${esc(tplNames)}</strong> ekle.${r.ntc?' NTC kuyusuna kalıp yerine aynı hacimde su koy.':''}`]);
+    if(G)m.push(['info',`Primerler gene göre değiştiği için her gen için ayrı tüpte bu karışımı hazırla. "${r.genes} gen toplam" sütunu, stoğun yetip yetmeyeceğini görmen için tüm genlerin toplamını gösterir.`]);
+    if(r.wells>96)m.push(['warn',`Toplam ${r.wells} kuyu, tek 96'lık plakaya sığmıyor.`]);
+    else if(r.wells>0)m.push(['ok',`96 kuyulu plakada ${r.wells} kuyu kullanılacak, ${96-r.wells} kuyu boş kalır.`]);
+    const tiny=r.rows.filter(x=>!x.tpl&&x.mix>0&&x.mix<1);
+    if(tiny.length)m.push(['warn',`${tiny.map(x=>esc(x.name)).join(', ')} tüpe 1 µL'den az giriyor, pipetlemesi hassas. Daha fazla reaksiyonluk hazırlamayı ya da stoğu seyreltmeyi düşün.`]);
+  }
+  $('msgs').innerHTML=m.map(x=>`<div class="msg ${x[0]}">${x[1]}</div>`).join('');
+}
+$('mix').addEventListener('change',e=>{const c=e.target.closest('[data-ck]');if(!c)return;st.checks[c.dataset.ck]=c.checked;persist();update()});
+$('uncheck').addEventListener('click',()=>{st.checks={};persist();update()});
+$('copy').addEventListener('click',()=>{
+  const r=last;let s=`Master mix – ${r.mixN} reaksiyonluk${r.genes>1?` (her gen için, ${r.genes} gen)`:''}\n(${r.samples} örnek${r.ntc?' + NTC':''}) × ${r.reps} tekrar, %${fmt(r.pct,0)} pay\n`;
+  r.rows.filter(x=>!x.tpl).forEach(x=>s+=`${x.name}: ${fmt(x.mix,1)} µL\n`);
+  s+=`Kuyu başı: ${fmt(r.perWell,1)} µL karışım + ${fmt(r.tplVol,1)} µL kalıp\n`;
+  const t=$('toast');const ok=()=>{t.textContent='Kopyalandı';setTimeout(()=>t.textContent='',2000)};
+  try{navigator.clipboard.writeText(s).then(ok,()=>t.textContent='Kopyalanamadı')}catch(e){t.textContent='Kopyalanamadı'}
+});
+
+fillRecipes();renderReps();renderComps();update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pasaj Takibi</title>
+<meta name="theme-color" content="#3a3fa0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="ortak.css">
+<style>
+.card-head .badge{margin-left:auto}
+.conf{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.conf .lbl{margin-right:4px}
+.conf button{min-width:52px}
+.splitform{border:1.5px solid var(--accent);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.88rem}
+.hist li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:6px;flex-wrap:wrap}
+.hist .num{color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Ana menü</a>
+  <header>
+    <span class="eyebrow">Hücre kültürü</span>
+    <h1>Pasaj takibi</h1>
+    <p>Hücreleri böldüğünde "Bugün böldüm"e bas; pasaj numarası kendiliğinden bir artar. Bölme günü gelen ya da geciken hat en üstte uyarı verir.</p>
+  </header>
+
+  <div id="overview" style="display:flex;flex-direction:column;gap:6px"></div>
+  <div id="cards" style="display:flex;flex-direction:column;gap:18px"></div>
+  <button id="addLine">+ Hücre hattı ekle</button>
+
+  <section class="panel">
+    <h2>Hatırlatma ve yedek</h2>
+    <p class="muted small">Sayfa kapalıyken telefon hatırlatma yapamaz. Bölme günlerini telefonun takvimine eklersen o gün alarm çalar.</p>
+    <div class="actions"><button class="primary" id="cal">Sonraki bölme günlerini takvime ekle</button></div>
+    <div class="grid2">
+      <div class="field"><label for="highP">Yüksek pasaj uyarısı (P)</label><input type="text" class="mono" inputmode="numeric" id="highP"></div>
+      <div class="field"><label for="medDays">Medium değişim uyarısı (gün)</label><input type="text" class="mono" inputmode="numeric" id="medDays"></div>
+    </div>
+    <p class="muted small">Kayıtlar bu telefonun tarayıcısında. Tarayıcı verisini silersen kaybolur, arada bir yedek al. Yedek dosyası tüm araçları (ekim, PCR, pasaj, deney) içerir.</p>
+    <div class="actions">
+      <button id="exp">Yedeği indir</button>
+      <label class="btn" for="imp">Yedekten yükle</label><input type="file" id="imp" accept="application/json,.json" hidden>
+    </div>
+    <span class="toast" id="toast" role="status"></span>
+  </section>
+</div>
+
+<script src="ortak.js"></script>
+<script>
+(function(){
+const {fmt,num,esc,uid,load,save,daysBetween,dateStr,toLocalInput,relDay,DAY}=Lab;
+const KEY='sena-pasaj-v1';
+const COLORS=['--c1','--c2','--c3','--c4'];
+const mk=name=>({id:uid(),name,p:'',last:null,conf:'',confAt:null,lastMed:null,interval:'3',ratio:'1:3',note:'',hist:[]});
+let st=load(KEY,null);
+if(!st||!Array.isArray(st.lines))st={lines:['CCLP','R-CCLP','HuCCT','R-HuCCT'].map(mk),highP:'30',medDays:'3'};
+const persist=()=>save(KEY,st);
+const $=id=>document.getElementById(id);
+const ui={}; // id -> {split:bool, confirmDel:bool}
+
+function status(l){
+  const out=[];const now=new Date();const iv=Math.max(1,Math.round(num(l.interval)||3));const p=parseInt(l.p,10);
+  let level='ok',badge='Tamam';
+  if(!l.last){out.push(['info','Başlamak için "Ayarlar ve geçmiş"ten şu anki pasaj numarasını ve son bölme tarihini gir.']);level='info';badge='Kayıt yok'}
+  else{
+    const d=daysBetween(l.last,now);const next=new Date(+new Date(l.last)+iv*DAY);
+    if(d>iv){out.push(['bad',`${esc(l.name)} hattını <strong>${d} gündür bölmedin</strong>. Hedef ${iv} günde bir.`]);level='bad';badge=`${d-iv} gün gecikti`}
+    else if(d===iv){out.push(['warn',`Bugün bölme günü. Son bölmeden ${d} gün geçti.`]);level='warn';badge='Bugün böl'}
+    else if(d===iv-1){out.push(['info',`Yarın bölme günü (${dateStr(next,false)}).`]);level='info';badge='Yarın'}
+    else out.push(['ok',`${d===0?'Bugün bölündü':`Son bölmeden ${d} gün geçti`}. Sonraki bölme: ${dateStr(next,false)} (${relDay(next)}).`]);
+  }
+  const c=num(l.conf);
+  if(Number.isFinite(c)&&l.confAt&&(!l.last||+new Date(l.confAt)>=+new Date(l.last))){
+    if(c>=95){out.push(['bad',`Doluluk %${fmt(c)}: hücreler neredeyse tamamen dolu. Hemen böl.`]);if(level!=='bad'){level='bad';badge='Çok dolu'}}
+    else if(c>=80){out.push(['warn',`Doluluk %${fmt(c)}: bölme zamanı gelmiş olabilir.`]);if(level==='ok'||level==='info'){level='warn';badge='Dolu'}}
+  }
+  const md=Math.max(1,Math.round(num(st.medDays)||3));
+  const lastMed=[l.lastMed,l.last].filter(Boolean).map(x=>+new Date(x)).sort((a,b)=>b-a)[0];
+  if(lastMed){const dm=daysBetween(lastMed,now);if(dm>=md)out.push(['warn',`Medium ${dm} gündür değişmedi (son bölme ya da medium değişimi ${dateStr(lastMed,false)}).`])}
+  const hp=parseInt(st.highP,10);
+  if(Number.isFinite(p)&&Number.isFinite(hp)&&p>=hp)out.push(['warn',`P${p}: yüksek pasaj. Düşük pasajlı stoktan yeni şişe açmayı düşün.`]);
+  return {out,level,badge};
+}
+
+function render(){
+  const box=$('cards');const openDetails=new Set([...box.querySelectorAll('details[open]')].map(d=>d.dataset.id));
+  box.innerHTML=st.lines.map((l,i)=>{
+    const s=status(l);const u=ui[l.id]||{};const col=`var(${COLORS[i%4]})`;
+    const p=parseInt(l.p,10);const c=num(l.conf);
+    const confFresh=Number.isFinite(c)&&l.confAt&&(!l.last||+new Date(l.confAt)>=+new Date(l.last));
+    return `<article class="card" data-id="${l.id}">
+      <div class="card-head"><span class="dot" style="background:${col}"></span>
+        <input type="text" class="bare" data-k="name" value="${esc(l.name)}" aria-label="Hat adı">
+        <span class="badge ${s.level}">${esc(s.badge)}</span></div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat"><span class="k">Pasaj</span><span class="v">${Number.isFinite(p)?'P'+p:'–'}</span></div>
+          <div class="stat"><span class="k">Son bölme</span><span class="v" style="font-size:.95rem">${l.last?dateStr(l.last,false):'–'}</span><span class="muted small">${l.last?relDay(l.last):''}</span></div>
+          <div class="stat"><span class="k">Doluluk</span><span class="v">${confFresh?'%'+fmt(c):'–'}</span><span class="muted small">${confFresh?relDay(l.confAt):'bölmeden sonra girilmedi'}</span></div>
+        </div>
+        ${confFresh?`<div class="bar" aria-hidden="true"><i style="width:${Math.min(100,c)}%;background:${c>=80?'var(--warn)':'var(--accent)'}"></i></div>`:''}
+        <div style="display:flex;flex-direction:column;gap:6px">${s.out.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('')}</div>
+        ${u.split?splitForm(l):`<div class="actions"><button class="primary" data-a="split" style="flex:1">Bugün böldüm</button><button data-a="med">Medium değiştirdim</button></div>`}
+        ${l.lastMed&&daysBetween(l.lastMed,new Date())===0?`<p class="muted small">Medium bugün ${Lab.timeStr(l.lastMed)}'da değiştirildi.</p>`:''}
+        <div class="conf"><span class="lbl">Doluluk şu an:</span>${[30,50,70,80,90,100].map(v=>`<button type="button" class="sm" data-conf="${v}" aria-pressed="${confFresh&&c===v}">%${v}</button>`).join('')}</div>
+        <details class="more" data-id="${l.id}" ${openDetails.has(l.id)||(!l.last&&!l.p)?'open':''}>
+          <summary>Ayarlar ve geçmiş</summary>
+          <div class="in">
+            <div class="grid2">
+              <div class="field"><label>Şu anki pasaj (P)</label><input type="text" class="mono" inputmode="numeric" data-k="p" value="${esc(l.p)}" placeholder="ör. 12"></div>
+              <div class="field"><label>Kaç günde bir bölünür</label><input type="text" class="mono" inputmode="numeric" data-k="interval" value="${esc(l.interval)}"></div>
+            </div>
+            <div class="field"><label>Son bölme tarihi</label><input type="datetime-local" data-k="last" value="${l.last?toLocalInput(l.last):''}"></div>
+            <div class="field"><label>Not (medium, ilaç dozu, vs.)</label><textarea data-k="note" rows="2" placeholder="ör. ilaçlı medium: 5 µM gemsitabin">${esc(l.note)}</textarea></div>
+            <h3 style="margin-top:4px">Bölme geçmişi</h3>
+            ${l.hist.length?`<ul class="hist">${l.hist.slice().reverse().slice(0,20).map(h=>`<li><span>${dateStr(h.t)}</span><span class="num">P${esc(h.from)} → P${esc(h.to)} · ${esc(h.ratio)}${h.conf?' · %'+esc(h.conf):''}</span></li>`).join('')}</ul>`:'<p class="muted small">Henüz kayıt yok.</p>'}
+            <div class="actions">
+              ${l.hist.length?'<button class="sm" data-a="undo">Son bölmeyi geri al</button>':''}
+              ${u.confirmDel?`<span class="small">Bu hat ve geçmişi silinsin mi?</span><button class="sm danger" data-a="delyes">Evet, sil</button><button class="sm" data-a="delno">Vazgeç</button>`:'<button class="sm danger ghost" data-a="del">Hattı sil</button>'}
+            </div>
+          </div>
+        </details>
+      </div></article>`}).join('');
+  overview();
+}
+function splitForm(l){
+  const p=parseInt(l.p,10);
+  return `<div class="splitform"><strong>Bölmeyi kaydet</strong>
+    <div class="grid2">
+      <div class="field"><label>Yeni pasaj (P)</label><input type="text" class="mono" inputmode="numeric" data-f="to" value="${Number.isFinite(p)?p+1:''}"></div>
+      <div class="field"><label>Bölme oranı</label><input type="text" class="mono" data-f="ratio" value="${esc(l.ratio||'1:3')}"></div>
+    </div>
+    <div class="field"><label>Ne zaman</label><input type="datetime-local" data-f="t" value="${toLocalInput(new Date())}"></div>
+    <div class="actions"><button class="primary" data-a="splitsave" style="flex:1">Kaydet</button><button data-a="splitcancel">Vazgeç</button></div></div>`;
+}
+function overview(){
+  const items=st.lines.map(l=>({l,s:status(l)})).filter(x=>x.s.level==='bad'||x.s.level==='warn');
+  $('overview').innerHTML=items.length?items.map(x=>`<div class="msg ${x.s.level}"><strong>${esc(x.l.name)}:</strong> ${esc(x.s.badge)}</div>`).join(''):(st.lines.some(l=>l.last)?'<div class="msg ok">Bugün bölünmesi gereken hat yok.</div>':'');
+}
+
+const box=$('cards');
+const lineOf=el=>{const c=el.closest('[data-id]');return c?st.lines.find(l=>l.id===c.dataset.id):null};
+box.addEventListener('input',e=>{
+  const k=e.target.dataset.k;if(!k)return;const l=lineOf(e.target);if(!l)return;
+  if(k==='last'){l.last=e.target.value?new Date(e.target.value).toISOString():null}else l[k]=e.target.value;
+  persist();
+  if(k==='name'){overview();return} // odak kaybolmasın
+  if(k==='note')return;
+});
+box.addEventListener('change',e=>{const k=e.target.dataset.k;if(k&&k!=='name'&&k!=='note')render()});
+box.addEventListener('click',e=>{
+  const cb=e.target.closest('[data-conf]');
+  if(cb){const l=lineOf(cb);l.conf=cb.dataset.conf;l.confAt=new Date().toISOString();persist();render();return}
+  const b=e.target.closest('[data-a]');if(!b)return;const l=lineOf(b);if(!l)return;const a=b.dataset.a;
+  ui[l.id]=ui[l.id]||{};
+  if(a==='split'){ui[l.id].split=true;render();return}
+  if(a==='splitcancel'){ui[l.id].split=false;render();return}
+  if(a==='splitsave'){
+    const card=b.closest('.card');const f=k=>card.querySelector(`[data-f="${k}"]`).value;
+    const to=f('to').trim(),ratio=f('ratio').trim()||l.ratio,t=f('t')?new Date(f('t')).toISOString():new Date().toISOString();
+    l.hist.push({t,from:l.p||'?',to:to||'?',ratio,conf:(l.confAt&&(!l.last||+new Date(l.confAt)>=+new Date(l.last)))?l.conf:'',prev:{p:l.p,last:l.last,conf:l.conf,confAt:l.confAt,ratio:l.ratio}});
+    l.p=to;l.last=t;l.ratio=ratio;l.conf='';l.confAt=null;ui[l.id].split=false;persist();render();return}
+  if(a==='med'){l.lastMed=new Date().toISOString();persist();render();return}
+  if(a==='undo'){const h=l.hist.pop();if(h&&h.prev)Object.assign(l,h.prev);persist();render();return}
+  if(a==='del'){ui[l.id].confirmDel=true;render();return}
+  if(a==='delno'){ui[l.id].confirmDel=false;render();return}
+  if(a==='delyes'){st.lines=st.lines.filter(x=>x!==l);persist();render();return}
+});
+$('addLine').addEventListener('click',()=>{const l=mk('Yeni hat');st.lines.push(l);persist();render();
+  const c=box.querySelector(`[data-id="${l.id}"] input[data-k="name"]`);c.focus();c.select()});
+
+['highP','medDays'].forEach(k=>{$(k).value=st[k]||'';$(k).addEventListener('input',e=>{st[k]=e.target.value;persist();render()})});
+
+function toast(s){const t=$('toast');t.textContent=s;setTimeout(()=>{if(t.textContent===s)t.textContent=''},2500)}
+$('cal').addEventListener('click',()=>{
+  const ev=[];const today=Lab.startOfDay(new Date());
+  st.lines.forEach(l=>{if(!l.last)return;const iv=Math.max(1,Math.round(num(l.interval)||3));
+    const d=Lab.startOfDay(+new Date(l.last)+iv*DAY);if(d<today)return;d.setHours(9,0,0,0);const p=parseInt(l.p,10);
+    ev.push({title:`${l.name} bölme günü${Number.isFinite(p)?` (P${p} → P${p+1})`:''}`,start:d,minutes:30,desc:`Son bölme: ${dateStr(l.last)}. ${l.note||''}`,alarms:[0]})});
+  if(Lab.addToCalendar('bolme-gunleri.ics',ev))toast(`${ev.length} bölme günü takvim dosyasına eklendi. Açılan dosyadan "Takvime ekle"yi seç.`);
+  else toast('Takvime eklenecek gelecek tarih yok. Gecikmiş hatları önce böl.');
+});
+$('exp').addEventListener('click',()=>{
+  const data={kit:'sena-lab',v:1,at:new Date().toISOString(),data:{}};
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('sena-'))data.data[k]=localStorage.getItem(k)}
+  Lab.download(`lab-kiti-yedek-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,1),'application/json');
+});
+$('imp').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);if(d.kit!=='sena-lab'||!d.data)throw 0;
+    Object.entries(d.data).forEach(([k,v])=>{if(k.startsWith('sena-'))localStorage.setItem(k,v)});
+    st=load(KEY,st);render();toast('Yedek yüklendi.')}catch(err){toast('Bu dosya bir lab kiti yedeği değil.')}};
+  rd.readAsText(f);e.target.value='';
+});
+
+render();
+const safeRender=()=>{const a=document.activeElement;if(!(a&&a.matches('input,textarea,select')))render()};
+setInterval(safeRender,10*60*1000); // gün dönünce durumlar güncellensin
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)safeRender()});
+})();
+</script>
+</body>
+</html>
