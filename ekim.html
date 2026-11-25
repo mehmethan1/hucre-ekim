@@ -213,6 +213,8 @@ state.lines.forEach((l,i)=>{
   if(!l.sq||l.sq.length<MAXQ*2){const o=l.sq||[];const s=Array(MAXQ*2).fill('');s[0]=o[0]??'';s[MAXQ]=o[4]??'';l.sq=s}
 });
 // sade sürüme geçiş: eski varsayılan 6 mL → 2 mL (bir kez)
+// eski "hazır ayar" butonu ilk iki hattı HuCCT-1 / HuCCT-1-R yapıyordu; sade planda bunlar CCLP / R-CCLP (bir kez)
+if(!state.settings.simpleV2){if(state.lines[0].name==='HuCCT-1')state.lines[0].name='CCLP';if(state.lines[1].name==='HuCCT-1-R')state.lines[1].name='R-CCLP';state.settings.simpleV2=1}
 if(!state.settings.simpleV1){state.lines.forEach(l=>{if(l.tube==='6'||l.tube==null||l.tube==='')l.tube='2'});state.settings.simpleV1=1}
 function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
 
