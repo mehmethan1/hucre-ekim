@@ -159,7 +159,6 @@ td:first-child{font-family:var(--sans);font-weight:600}
       <div class="field"><label for="s-plate">Plaka</label><select id="s-plate">
         <option value="6">6 kuyulu (2 × 3)</option><option value="12">12 kuyulu (3 × 4)</option><option value="24">24 kuyulu (4 × 6)</option><option value="48">48 kuyulu (6 × 8)</option><option value="96">96 kuyulu (8 × 12)</option>
       </select></div>
-      <div class="field"><label for="s-tube">Hücreleri topladığın hacim (mL, tüm hatlara)</label><input type="text" inputmode="decimal" id="s-tube" placeholder="kartlardan ayrı ayrı"></div>
     </div>
     <div class="actions" style="padding:0 16px 16px">
       <button type="button" id="presetBtn">Hazır ayar: 6 kuyulu, 2 hat × 3 kuyu, 200.000 hücre / 1 mL, 2 mL'de topla</button>
@@ -284,17 +283,13 @@ const nlEl=document.getElementById('s-nlines');nlEl.value=state.settings.nlines;
 nlEl.addEventListener('input',()=>{state.settings.nlines=nlEl.value;save();buildCards();update()});
 const plEl=document.getElementById('s-plate');plEl.value=state.settings.plate;
 plEl.addEventListener('change',()=>{state.settings.plate=plEl.value;save();update()});
-const tbEl=document.getElementById('s-tube');tbEl.value=state.settings.tube;
-tbEl.addEventListener('input',()=>{state.settings.tube=tbEl.value;
-  if(tbEl.value.trim()!==''){state.lines.forEach((l,i)=>{l.tube=tbEl.value;l.shown=false;const t=document.getElementById('t'+i);if(t)t.value=tbEl.value})}
-  save();update()});
 document.getElementById('presetBtn').addEventListener('click',()=>{
   Object.assign(state.settings,{plate:'6',nlines:'2',wells:'3',cells:'200000',vol:'1000',tube:'2'});
   if(state.lines[0].name==='CCLP')state.lines[0].name='HuCCT-1';
   if(state.lines[1].name==='R-CCLP')state.lines[1].name='HuCCT-1-R';
   state.lines.forEach(l=>{l.tube='2';l.shown=false});
   for(const k in S)document.getElementById(S[k]).value=state.settings[k];
-  nlEl.value='2';plEl.value='6';tbEl.value='2';
+  nlEl.value='2';plEl.value='6';
   save();buildCards();drawHemo();update();
 });
 function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:0}}
@@ -338,7 +333,7 @@ function methodUI(){
   document.getElementById('methodText').textContent=vLine+'\n'+sus;
   document.getElementById('methodText').style.whiteSpace='pre-wrap';
   const minC=st.cells/st.vol*1000;
-  const tube=parseDec(state.settings.tube)||parseDec(state.lines[0].tube);
+  const tube=parseDec(state.lines[0].tube);
   const minV=lab?(tube>0?st.cells/(st.vol/1000*h.F*df*tube):NaN):minC/(h.F*df);
   document.getElementById('minText').textContent=lab
     ?(Number.isFinite(minV)?`Lab formülüyle ${fmt(st.cells)} hücre ${fmt(st.vol)} µL'ye sığsın diye, ${fmt(tube,1)} mL'de toplayınca ${vName()} en az ${fmt(minV,1)} olmalı. Altındaysa santrifüjleyip daha az mediumda topla.`:'Toplama hacmini girince en düşük sayım değeri burada çıkar.')
