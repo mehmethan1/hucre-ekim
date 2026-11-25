@@ -123,9 +123,11 @@ th{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.
 td{font-family:var(--mono);font-variant-numeric:tabular-nums}
 td:first-child{font-family:var(--sans);font-weight:600}
 
-.plate{display:grid;grid-template-columns:auto repeat(6,1fr);gap:6px;align-items:center;max-width:420px}
+.plates{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.plate-box{display:flex;flex-direction:column;gap:8px;min-width:0}
+.plate{display:grid;grid-template-columns:auto repeat(3,1fr);gap:8px;align-items:center;max-width:300px}
 .plate .rl,.plate .cl{font-family:var(--mono);font-size:.75rem;color:var(--muted);text-align:center}
-.well{aspect-ratio:1;max-width:100%;border-radius:50%;border:2px solid;display:grid;place-items:center;font-size:var(--wf,.6rem);font-weight:700}
+.well{aspect-ratio:1;max-width:100%;border-radius:50%;border:2px solid;display:grid;place-items:center;font-size:.72rem;font-weight:700;text-align:center;padding:4px;line-height:1.15;overflow-wrap:anywhere}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 
@@ -146,53 +148,9 @@ td:first-child{font-family:var(--sans);font-weight:600}
   <header>
     <span class="eyebrow">Hemositometre → kuyu ekimi</span>
     <h1>Sena'nın Ekim Hesabı</h1>
-    <p>Hemositometrenin iki tarafında ortadaki büyük karede saydığın canlı hücreleri yaz, gerisini sayfa hesaplasın. Her hücre hattı için kuyu başına ne kadar süspansiyon ve ne kadar medium koyacağın aşağıda çıkar.</p>
+    <p>Her hat için hemositometrenin iki tarafında <strong>ortadaki büyük karede</strong> saydığın canlı hücreleri yaz. Kuyu başına ne kadar süspansiyon ve ne kadar medium koyacağın aşağıda çıkar.</p>
+    <p class="muted" style="font-size:.9rem">Plan: 4 hat × 3 kuyu, iki tane 6 kuyulu plaka. Kuyu başına 200.000 hücre, toplam 1 mL.</p>
   </header>
-
-  <details class="settings" id="settings" open>
-    <summary><span>Deney ayarları</span><span class="sumtext" id="setSummary"></span></summary>
-    <div class="set-grid">
-      <div class="field"><label for="s-cells">Kuyu başı hücre</label><input type="text" inputmode="numeric" id="s-cells"></div>
-      <div class="field"><label for="s-vol">Kuyu başı toplam hacim (µL)</label><input type="text" inputmode="decimal" id="s-vol"></div>
-      <div class="field"><label for="s-wells">Hat başı kuyu sayısı</label><input type="text" inputmode="numeric" id="s-wells"></div>
-      <div class="field"><label for="s-nlines">Hücre hattı sayısı (1–6)</label><input type="text" inputmode="numeric" id="s-nlines"></div>
-      <div class="field"><label for="s-plate">Plaka</label><select id="s-plate">
-        <option value="6">6 kuyulu (2 × 3)</option><option value="12">12 kuyulu (3 × 4)</option><option value="24">24 kuyulu (4 × 6)</option><option value="48">48 kuyulu (6 × 8)</option><option value="96">96 kuyulu (8 × 12)</option>
-      </select></div>
-    </div>
-    <div class="actions" style="padding:0 16px 16px">
-      <button type="button" id="presetBtn">Hazır ayar: 6 kuyulu, 2 hat × 3 kuyu, 200.000 hücre / 1 mL, 2 mL'de topla</button>
-    </div>
-  </details>
-
-  <section class="panel" id="hemoPanel">
-    <h2>Hemositometre</h2>
-    <div class="hemo-pick">
-      <svg id="hemoSvg" viewBox="-4 -4 308 308" role="img" aria-label="Hemositometre ızgarası, sayılacak orta kare işaretli"></svg>
-      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        <p id="hemoText" style="font-size:.92rem"></p>
-        <div class="formula" id="hemoFactor"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel" id="methodPanel">
-    <h2>Sayım ve formül</h2>
-    <div class="set-grid" style="padding:0">
-      <div class="field"><label for="s-nsides">Sayılan taraf</label><select id="s-nsides">
-        <option value="1">1 taraf</option><option value="2">2 taraf</option>
-      </select></div>
-      <div class="field"><label for="s-df">Seyreltme faktörü (ör. tripan 1:1 → 2)</label><input type="text" inputmode="decimal" id="s-df"></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <span class="eyebrow">Kuyuya süspansiyon formülü</span>
-      <div class="chips" role="group" aria-label="Süspansiyon formülü">
-        <button type="button" class="chip" data-formula="lab">Toplama hacmine de böl (lab formülü)</button>
-        <button type="button" class="chip" data-formula="std">Standart: hücre ÷ hücre/mL</button>
-      </div>
-    </div>
-    <div class="formula" id="methodText"></div>
-  </section>
 
   <div class="banner" id="exampleBanner" hidden>
     <span><strong>İlk karttaki sayılar örnek.</strong> Kendi sayımını yazınca ya da temizleyince bu uyarı kaybolur.</span>
@@ -211,323 +169,169 @@ td:first-child{font-family:var(--sans);font-weight:600}
   </section>
 
   <section class="panel">
-    <h2 id="plateTitle">24 kuyulu plaka önerisi</h2>
-    <p class="muted" style="font-size:.9rem" id="plateNote">4 hat × 6 kuyu = 24 kuyu. Her sıraya bir hat koymak karışmayı önler.</p>
-    <div class="plate" id="plate"></div>
-    <div class="legend" id="legend"></div>
+    <h2>Plakalar</h2>
+    <div class="plates" id="plates"></div>
   </section>
 
   <section class="panel howto">
     <h2>Nasıl hesaplıyor?</h2>
-    <div id="howForm" style="display:flex;flex-direction:column;gap:8px"></div>
-    <ol>
-      <li><strong>Çarpan neden <span class="fx">10.000</span>?</strong> <span id="fxWhy"></span></li>
-      <li><strong>Yeterli hücre var mı?</strong> <span id="minText"></span></li>
-      <li><strong>Seyreltmeli miyim?</strong> Bir karede 100'den fazla hücre varsa hücreler üst üste biner. Hücreleri daha fazla mediumda toplayıp yeniden say.</li>
-    </ol>
+    <div class="formula">ortalama = (1. taraf orta kare + 2. taraf orta kare) ÷ 2</div>
+    <div class="formula">kuyuya süspansiyon (mL) = 200.000 ÷ (ortalama × 10.000 × toplama hacmi mL)</div>
+    <div class="formula">eklenecek medium (µL) = 1.000 − süspansiyon (µL)</div>
+    <div class="formula">tüpteki toplam hücre = ortalama × 10.000 × toplama hacmi mL</div>
   </section>
 
   <section class="panel">
-    <div class="actions" id="resetArea">
-      <button id="resetBtn">Tüm sayımları sıfırla</button>
-    </div>
+    <div class="actions" id="resetArea"></div>
   </section>
 </div>
 
 <script>
 (function(){
-const COLORS=['--c1','--c2','--c3','--c4','--c5','--c6'];
-const DEFAULT_LINES=['CCLP','R-CCLP','HuCCT','R-HuCCT','Hat 5','Hat 6'];
-const MAXL=6;
-const PLATES={6:[2,3],12:[3,4],24:[4,6],48:[6,8],96:[8,12]};
+const COLORS=['--c1','--c2','--c3','--c4'];
+const DEFAULT_LINES=['CCLP','R-CCLP','HuCCT','R-HuCCT'];
 const STORE='sena-ekim-v4';
+const CELLS=200000, VOL=1000, WELLS=3, F=10000, MAXQ=9; // sq: 1. taraf = sq[0], 2. taraf = sq[9]
 const fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
 const parse=v=>{if(v==null)return NaN;const s=String(v).trim().replace(/\./g,'').replace(',', '.');if(s==='')return NaN;return Number(s)};
 const parseDec=v=>{if(v==null)return NaN;const s=String(v).trim().replace(',', '.');if(s==='')return NaN;return Number(s)};
-const sci=n=>{if(!Number.isFinite(n)||n<=0)return '–';const e=Math.floor(Math.log10(n));const m=n/Math.pow(10,e);return fmt(m,2)+' × 10'+sup(e)};
-const sup=e=>String(e).split('').map(c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)]||c).join('');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-const MAXQ=9; // taraf başı en fazla kare; sq dizisi: taraf*9 + kare
-function blankLine(name){return {name,sq:Array(MAXQ*2).fill(''),dead:'',df:'1',tube:'6'}}
+function blankLine(name){return {name,sq:Array(MAXQ*2).fill(''),tube:'2'}}
 function defaults(){
   const lines=DEFAULT_LINES.map(blankLine);
   lines[0].sq[0]='92';lines[0].sq[MAXQ]='90';lines[0].shown=true;
-  return {settings:{cells:'350000',vol:'500',wells:'6',extra:'1',nlines:'4',plate:'24',tube:''},lines,example:true};
+  return {settings:{simpleV1:1},lines,example:true};
 }
 let state;
 try{state=JSON.parse(localStorage.getItem(STORE))}catch(e){state=null}
-if(!state||!state.lines||state.lines.length<4)state=defaults();
-// eski kayıtları yeni alanlara tamamla (hiçbir sayım silinmez)
-while(state.lines.length<MAXL)state.lines.push(blankLine(DEFAULT_LINES[state.lines.length]));
-if(state.settings.nlines==null)state.settings.nlines='4';
-if(state.settings.plate==null)state.settings.plate='24';
-if(state.settings.tube==null)state.settings.tube='';
-const DEF={nsq:'4',nsides:'2',method:'sum',formula:'lab',df:'1',customF:''};
-for(const k in DEF)if(state.settings[k]==null)state.settings[k]=DEF[k];
-// 2026-11-25: Sena'nın laboratuvar hemositometresi varsayılan (bir kez uygulanır)
-if(!state.settings.hemoV2){state.settings.hemo='lab';state.settings.unit='block';state.settings.hemoV2=1}
-state.lines.forEach(l=>{if(!l.sq||l.sq.length<MAXQ*2){const o=l.sq||[];const s=Array(MAXQ*2).fill('');
-  for(let k=0;k<4;k++){s[k]=o[k]??'';s[MAXQ+k]=o[4+k]??''}l.sq=s}});
-function nsq(){return 1} // sadece orta kare
-function nsides(){return state.settings.nsides==='1'?1:2}
-function dfac(){const d=parseDec(state.settings.df);return d>0?d:1}
-const SQ_NAMES=['Sol üst','Sağ üst','Sol alt','Sağ alt','Orta','Üst orta','Sol orta','Sağ orta','Alt orta'];
-function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
-function nl(){const n=parse(state.settings.nlines);return Number.isFinite(n)?Math.min(MAXL,Math.max(1,Math.round(n))):4}
-function vis(){return state.lines.slice(0,nl())}
-
-// settings
-const S={cells:'s-cells',vol:'s-vol',wells:'s-wells'};
-for(const k in S){const el=document.getElementById(S[k]);el.value=state.settings[k];el.addEventListener('input',()=>{state.settings[k]=el.value;save();drawHemo();update()})}
-const nlEl=document.getElementById('s-nlines');nlEl.value=state.settings.nlines;
-nlEl.addEventListener('input',()=>{state.settings.nlines=nlEl.value;save();buildCards();update()});
-const plEl=document.getElementById('s-plate');plEl.value=state.settings.plate;
-plEl.addEventListener('change',()=>{state.settings.plate=plEl.value;save();update()});
-document.getElementById('presetBtn').addEventListener('click',()=>{
-  Object.assign(state.settings,{plate:'6',nlines:'2',wells:'3',cells:'200000',vol:'1000',tube:'2'});
-  if(state.lines[0].name==='CCLP')state.lines[0].name='HuCCT-1';
-  if(state.lines[1].name==='R-CCLP')state.lines[1].name='HuCCT-1-R';
-  state.lines.forEach(l=>{l.tube='2';l.shown=false});
-  for(const k in S)document.getElementById(S[k]).value=state.settings[k];
-  nlEl.value='2';plEl.value='6';
-  save();buildCards();drawHemo();update();
+if(!state||!Array.isArray(state.lines)||state.lines.length<4)state=defaults();
+state.settings=state.settings||{};
+state.lines=state.lines.slice(0,4);
+state.lines.forEach((l,i)=>{
+  if(!l.name)l.name=DEFAULT_LINES[i];
+  if(!l.sq||l.sq.length<MAXQ*2){const o=l.sq||[];const s=Array(MAXQ*2).fill('');s[0]=o[0]??'';s[MAXQ]=o[4]??'';l.sq=s}
 });
-function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:0}}
+// sade sürüme geçiş: eski varsayılan 6 mL → 2 mL (bir kez)
+if(!state.settings.simpleV1){state.lines.forEach(l=>{if(l.tube==='6'||l.tube==null||l.tube==='')l.tube='2'});state.settings.simpleV1=1}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
 
-// hemositometre tipi: Improved Neubauer (1 mm² köşe kare → ×10⁴) ya da eski Neubauer (1 mm² blok ×10⁴ veya tek 0,25 mm kare ×160.000)
-// hacim: 1 mm² × 0,1 mm = 0,1 µL → ×10⁴ ; 0,0625 mm² × 0,1 mm = 0,00625 µL → ×160.000
-// Sena'nın laboratuvarındaki hemositometre (labdaki hepsi aynı): 3 × 3 mm, 9 büyük kare (1 mm²),
-// köşeler 5 × 5 (0,2 mm), ortadaki 0,05 mm çizgiler kenarlara uzayıp artı yapıyor.
-// Sayılan: her taraftan ORTADAKİ büyük kare (1 mm² × 0,1 mm = 0,1 µL) → ×10.000
-function hemo(){return{t:'lab',u:'center',F:10000,name:'Orta kare (1 mm²)'}}
-const NS='http://www.w3.org/2000/svg';
-function drawHemo(){
-  const h=hemo(),s=document.getElementById('hemoSvg');s.innerHTML='';
-  const ln=(x1,y1,x2,y2,w,c)=>{const e=document.createElementNS(NS,'line');e.setAttribute('x1',x1);e.setAttribute('y1',y1);e.setAttribute('x2',x2);e.setAttribute('y2',y2);e.setAttribute('stroke-width',w);e.style.stroke=`var(${c})`;s.appendChild(e)};
-  const r=document.createElementNS(NS,'rect');r.setAttribute('x',100);r.setAttribute('y',100);r.setAttribute('width',100);r.setAttribute('height',100);
-  r.style.fill='color-mix(in srgb,var(--trypan) 35%,transparent)';r.style.stroke='var(--trypan)';r.style.strokeWidth='4';s.appendChild(r);
-  for(let x=100;x<=200;x+=5){ln(x,0,x,300,.5,'--muted');ln(0,x,300,x,.5,'--muted')}
-  for(let x=100;x<=200;x+=20){ln(x,0,x,300,1.4,'--fg');ln(0,x,300,x,1.4,'--fg')}
-  [[0,0],[200,0],[0,200],[200,200]].forEach(([ox,oy])=>{for(let k=1;k<5;k++){ln(ox+k*20,oy,ox+k*20,oy+100,1,'--fg');ln(ox,oy+k*20,ox+100,oy+k*20,1,'--fg')}});
-  for(let i=0;i<=3;i++){const p=i*100;ln(p,0,p,300,2.4,'--fg');ln(0,p,300,p,2.4,'--fg')}
-  const sides=nsides()===2?'Her iki taraftan':'Bir taraftan';
-  document.getElementById('hemoText').innerHTML=`${sides} <strong>ortadaki büyük kareyi</strong> say (işaretli, sık çizgili bölge). Bu kare 1 × 1 mm; içindeki bütün hücreleri tek sayı olarak yaz.`;
-  document.getElementById('hemoFactor').textContent='orta kare = 1 mm² × 0,1 mm = 0,1 µL → hücre/mL = sayılan hücre × 10.000';
-  document.querySelectorAll('.fx').forEach(e=>e.textContent=fmt(h.F));
-  document.getElementById('fxWhy').textContent='Ortadaki kare 1 × 1 mm, derinlik 0,1 mm: hacmi 0,1 µL. 1 mL için 10.000 ile çarpılır.';
-  methodUI();
-}
-// sayım değeri adı ve formül metinleri
-function vName(){return nsides()===2?'iki tarafın ortalaması':'orta kare sayımı'}
-function methodUI(){
-  const h=hemo(),st=settings(),q=nsq(),s2=nsides()===2,df=dfac(),lab=state.settings.formula!=='std';
-  document.querySelectorAll('[data-method]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.method===(state.settings.method==='avg'?'avg':'sum')));
-  document.querySelectorAll('[data-formula]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.formula===(lab?'lab':'std')));
-  const dfs=df!==1?` × ${fmt(df,1)} (seyreltme)`:'';
-  const vLine=s2?`iki tarafın ortalaması = (1. taraf orta kare + 2. taraf orta kare) ÷ 2`:`orta kare sayımı = ortadaki karede saydığın hücre`;
-  const sus=lab
-    ?`kuyuya süspansiyon (mL) = ${fmt(st.cells)} ÷ (${vName()} × ${fmt(h.F)}${dfs} × toplama hacmi mL)`
-    :`kuyuya süspansiyon (mL) = ${fmt(st.cells)} ÷ (${vName()} × ${fmt(h.F)}${dfs})`;
-  const rows=[vLine,`hücre/mL = ${vName()} × ${fmt(h.F)}${dfs}`,sus,`eklenecek medium (µL) = ${fmt(st.vol)} − süspansiyon (µL)`,`tüpteki toplam hücre = hücre/mL × toplama hacmi mL`];
-  document.getElementById('howForm').innerHTML=rows.map(r=>`<div class="formula">${esc(r)}</div>`).join('');
-  document.getElementById('methodText').textContent=vLine+'\n'+sus;
-  document.getElementById('methodText').style.whiteSpace='pre-wrap';
-  const minC=st.cells/st.vol*1000;
-  const tube=parseDec(state.lines[0].tube);
-  const minV=lab?(tube>0?st.cells/(st.vol/1000*h.F*df*tube):NaN):minC/(h.F*df);
-  document.getElementById('minText').textContent=lab
-    ?(Number.isFinite(minV)?`Lab formülüyle ${fmt(st.cells)} hücre ${fmt(st.vol)} µL'ye sığsın diye, ${fmt(tube,1)} mL'de toplayınca ${vName()} en az ${fmt(minV,1)} olmalı. Altındaysa santrifüjleyip daha az mediumda topla.`:'Toplama hacmini girince en düşük sayım değeri burada çıkar.')
-    :`${fmt(st.cells)} hücre ${fmt(st.vol)} µL'ye sığsın diye tüpte en az ${fmt(minC)} hücre/mL gerekir. Bu, ${vName()} en az ${fmt(minV,1)} olmalı demek. Altındaysa santrifüjleyip daha az mediumda topla.`;
-}
-document.getElementById('methodPanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.method)state.settings.method=b.dataset.method;
-  if(b.dataset.formula)state.settings.formula=b.dataset.formula;
-  save();drawHemo();update();});
-const dfEl=document.getElementById('s-df');dfEl.value=state.settings.df;
-dfEl.addEventListener('input',()=>{state.settings.df=dfEl.value;save();drawHemo();update()});
-['nsides'].forEach(k=>{const el=document.getElementById('s-'+k);el.value=state.settings[k];
-  el.addEventListener('change',()=>{state.settings[k]=el.value;save();buildCards();drawHemo();update()})});
-
-// cards
+// kartlar
 const cardsEl=document.getElementById('cards');
-let refs=[];
-function buildCards(){
-cardsEl.innerHTML='';refs=[];
-vis().forEach((ln,i)=>{
+const refs=[];
+state.lines.forEach((ln,i)=>{
   const c=document.createElement('article');c.className='card';
-  const col=`var(${COLORS[i]})`;
   c.innerHTML=`
-  <div class="card-head"><span class="dot" style="background:${col}"></span>
+  <div class="card-head"><span class="dot" style="background:var(${COLORS[i]})"></span>
     <input type="text" class="name" id="n${i}" aria-label="Hücre hattı adı"></div>
   <div class="card-body">
-    ${Array.from({length:nsides()},(_,side)=>`<div>
-      <div class="eyebrow" style="margin-bottom:6px">${side+1}. taraf · canlı hücre (${nsq()} kare)</div>
-      <div class="hemo" style="grid-template-columns:repeat(${nsq()===1?1:nsq()<=4?2:3},1fr)">
-        ${Array.from({length:nsq()},(_,k)=>{const j=side*MAXQ+k;const t='Orta kare';return `<div class="sq"><label for="q${i}_${j}">${t}</label><input type="text" inputmode="numeric" id="q${i}_${j}" placeholder="0"></div>`}).join('')}
+    <div>
+      <div class="eyebrow" style="margin-bottom:6px">Ortadaki büyük kare · canlı hücre</div>
+      <div class="hemo">
+        <div class="sq"><label for="q${i}_0">1. taraf</label><input type="text" inputmode="numeric" id="q${i}_0" placeholder="0"></div>
+        <div class="sq"><label for="q${i}_${MAXQ}">2. taraf</label><input type="text" inputmode="numeric" id="q${i}_${MAXQ}" placeholder="0"></div>
       </div>
-    </div>`).join('')}
+    </div>
     <div class="field" style="max-width:260px"><label for="t${i}">Hücreleri topladığın hacim (mL)</label><input type="text" inputmode="decimal" id="t${i}" placeholder="–"></div>
   </div>
   <div class="result" id="r${i}" aria-live="polite"></div>`;
   cardsEl.appendChild(c);
   const name=c.querySelector('#n'+i);name.value=ln.name;
   name.addEventListener('input',()=>{ln.name=name.value;save();update()});
-  for(let j=0;j<MAXQ*2;j++){const q=c.querySelector(`#q${i}_${j}`);if(!q)continue;q.value=ln.sq[j];q.addEventListener('input',()=>{ln.sq[j]=q.value;touch(i);save();update()})}
+  [0,MAXQ].forEach(j=>{const q=c.querySelector(`#q${i}_${j}`);q.value=ln.sq[j];q.addEventListener('input',()=>{ln.sq[j]=q.value;touch(i);save();update()})});
   const t=c.querySelector('#t'+i);t.value=ln.tube;t.addEventListener('input',()=>{ln.tube=t.value;touch(i);save();update()});
-  refs.push({res:c.querySelector('#r'+i)});
+  refs.push(c.querySelector('#r'+i));
 });
-}
-buildCards();
 function touch(i){state.lines[i].shown=false;if(i===0&&state.example){state.example=false;banner()}}
 cardsEl.addEventListener('click',e=>{const b=e.target.closest('.calc-btn');if(!b)return;const i=+b.dataset.i;
-  state.lines[i].shown=true;save();update();const el=refs[i].res;el.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
+  state.lines[i].shown=true;save();update();refs[i].scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
 function banner(){document.getElementById('exampleBanner').hidden=!state.example}
 document.getElementById('clearExample').addEventListener('click',()=>{
   const l=state.lines[0];l.sq=Array(MAXQ*2).fill('');state.example=false;
-  for(let j=0;j<MAXQ*2;j++){const q=document.getElementById(`q0_${j}`);if(q)q.value=''}
+  [0,MAXQ].forEach(j=>document.getElementById(`q0_${j}`).value='');
   save();banner();update();
 });
 
-function calc(ln,st){
-  const Q=nsq();
-  const sides=Array.from({length:nsides()},(_,k)=>ln.sq.slice(k*MAXQ,k*MAXQ+Q).map(parse).filter(Number.isFinite));
-  const vals=sides.flat();
-  const n=vals.length;if(!n)return null;
-  const sum=vals.reduce((a,b)=>a+b,0),avg=sum/n; // avg = kare başı (uyarılar için)
-  // Lab yöntemi: her tarafın kare TOPLAMI, iki tarafın ortalaması (÷2); ya da kare başı ortalama
-  const used=sides.map((a,k)=>({k,cnt:a.length,sum:a.reduce((x,y)=>x+y,0)})).filter(s=>s.cnt>0);
-  const byAvg=false; // tek kare: toplam = ortalama
-  const sideAvg=byAvg?avg:used.reduce((x,s)=>x+s.sum,0)/used.length;
-  const df=dfac();
-  const conc=sideAvg*hemo().F*df;
-  const sd=n>1?Math.sqrt(vals.reduce((a,b)=>a+(b-avg)**2,0)/(n-1)):0;
-  const cv=avg>0?sd/avg:0;
+function calc(ln){
+  const sides=[ln.sq[0],ln.sq[MAXQ]].map(parse).filter(Number.isFinite);
+  if(!sides.length)return null;
+  const avg=sides.reduce((a,b)=>a+b,0)/sides.length;
+  const conc=avg*F;
   const tube=parseDec(ln.tube);
-  const total=Number.isFinite(tube)?conc*tube:NaN; // ort × 10.000 × hacim(mL)
-  // Kullanıcının istediği formül: kuyuya süspansiyon (mL) = 350.000 ÷ (taraf ort × 10.000 × toplama hacmi)
-  const lab=state.settings.formula!=='std';
-  const cellMl=conc>0&&(!lab||tube>0)?st.cells/(lab?conc*tube:conc):Infinity;
-  const cellVol=cellMl*1000;
-  const medVol=st.vol-cellVol;
-  const nMix=(st.wells||0)+(st.extra||0);
-  const mixCell=cellVol*nMix, mixMed=st.vol*nMix-mixCell;
-  const avail=total;
-  const need=st.cells*nMix;
+  const total=tube>0?conc*tube:NaN;
+  const cellMl=conc>0&&tube>0?CELLS/(conc*tube):Infinity;
+  const cellVol=cellMl*1000, medVol=VOL-cellVol, need=CELLS*WELLS;
   const msgs=[];
-  used.forEach(s=>{if(s.cnt<Q)msgs.push(['warn',`${s.k+1}. tarafta ${s.cnt} kare girildi. ${byAvg?'Ortalama girilen kareler':`Toplam ${Q} kare`} üzerinden alınıyor, eksik kareyi de gir.`])});
-  if(nsides()===2&&used.length===1)msgs.push(['warn',byAvg?`Sadece ${used[0].k+1}. taraf girildi; ortalama o tarafın karelerinden alındı.`:`Sadece ${used[0].k+1}. taraf girildi; ÷2 yapılmadı, o tarafın toplamı kullanıldı.`]);
-  if(used.length===2&&Math.max(used[0].sum,used[1].sum)>0&&Math.abs(used[0].sum-used[1].sum)/Math.max(used[0].sum,used[1].sum)>0.2)msgs.push(['warn',`İki taraf arasında fark büyük (${fmt(used[0].sum)} ve ${fmt(used[1].sum)}). Süspansiyonu iyice karıştırıp yeniden yükle.`]);
-  if(avg>100)msgs.push(['warn',`Orta karede ${fmt(avg,0)} hücre. Bu kalabalık, hücreler üst üste binebilir. Daha fazla mediumda toplayıp yeniden say.`]);
-  if(n>=3&&cv>0.25)msgs.push(['warn',`Kareler arasında fark büyük (%${fmt(cv*100,0)}). Süspansiyonu iyice pipetleyip karıştır, hemositometreyi yeniden yükle.`]);
-  if(!(tube>0)&&!lab)msgs.push(['warn','"Hücreleri topladığın hacim" kutusunu doldurursan tüpte yeterli hücre olup olmadığını da kontrol eder.']);
-  if(!(tube>0)&&lab)msgs.push(['bad','Hesap için "Hücreleri topladığın hacim" kutusunu doldur.']);
-  else if(cellVol>st.vol)msgs.push(['bad',`Süspansiyon çok seyreltik: bir kuyuya ${fmt(cellVol,0)} µL gerekiyor, bu kuyu hacmini (${fmt(st.vol,0)} µL) aşıyor. Hücreleri santrifüjleyip daha az mediumda topla, sonra yeniden say.`]);
+  if(sides.length===1)msgs.push(['warn','Sadece bir taraf girildi; ortalama o taraftan alındı.']);
+  if(sides.length===2&&Math.max(...sides)>0&&Math.abs(sides[0]-sides[1])/Math.max(...sides)>0.2)msgs.push(['warn',`İki taraf arasında fark büyük (${fmt(sides[0])} ve ${fmt(sides[1])}). Süspansiyonu iyice karıştırıp yeniden yükle.`]);
+  if(!(tube>0))msgs.push(['bad','Hesap için "Hücreleri topladığın hacim" kutusunu doldur.']);
+  else if(cellVol>VOL)msgs.push(['bad',`Süspansiyon çok seyreltik: bir kuyuya ${fmt(cellVol,0)} µL gerekiyor, bu 1 mL'yi aşıyor. Hücreleri santrifüjleyip daha az mediumda topla, sonra yeniden say.`]);
   else if(cellVol<2)msgs.push(['warn',`Kuyu başı ${fmt(cellVol,1)} µL çok az, pipetlemesi zor. Süspansiyonu önce seyrelt.`]);
-  if(Number.isFinite(avail)&&avail<need)msgs.push(['bad',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yetmiyor.`]);
-  else if(Number.isFinite(avail))msgs.push(['ok',`Tüpte toplam ${fmt(avail,0)} hücre var, ${nMix} kuyu için ${fmt(need,0)} gerekiyor. Yeterli.`]);
-  if(!msgs.some(m=>m[0]!=='ok')&&msgs.length===0)msgs.push(['ok','Sayım aralığı uygun.']);
-  return {n,vals,avg,used,sideAvg,df,conc,cv,total,tube,cellMl,cellVol,medVol,nMix,mixCell,mixMed,avail,need,msgs,ok:cellVol<=st.vol};
+  if(Number.isFinite(total))msgs.push(total<need?['bad',`Tüpte toplam ${fmt(total)} hücre var, 3 kuyu için ${fmt(need)} gerekiyor. Yetmiyor.`]:['ok',`Tüpte toplam ${fmt(total)} hücre var, 3 kuyu için ${fmt(need)} gerekiyor. Yeterli.`]);
+  return {sides,avg,tube,total,cellMl,cellVol,medVol,msgs,ok:cellVol<=VOL};
 }
-
 function pourHTML(a,b){return `<div class="pour"><div class="part"><span class="big">${a}</span><span class="lbl">hücre süspansiyonu</span></div><span class="plus">+</span><div class="part"><span class="big">${b}</span><span class="lbl">medium</span></div></div>`}
-const volStr=v=>v>=1000?fmt(v/1000,3)+' mL':fmt(v,1)+' µL';
 
 let results=[];
 function update(){
-  const st=settings();
-  document.getElementById('setSummary').textContent=`${hemo().name} · ${state.settings.plate} kuyulu plaka · ${nl()} hat × ${fmt(st.wells)} kuyu · ${fmt(st.cells)} hücre · ${fmt(st.vol)} µL`;
-  methodUI();
-  document.querySelectorAll(".hx-cells").forEach(e=>e.textContent=fmt(st.cells));document.querySelectorAll(".hx-vol").forEach(e=>e.textContent=fmt(st.vol));
-  results=vis().map((ln,i)=>{
-    const r=calc(ln,st);const el=refs[i].res;
-    if(!r){el.innerHTML='<p class="empty">Kare sayılarını gir, sonra "Medium\'u hesapla"ya bas.</p>';return null}
+  results=state.lines.map((ln,i)=>{
+    const r=calc(ln),el=refs[i];
+    if(!r){el.innerHTML='<p class="empty">Orta kare sayılarını gir, sonra "Medium\'u hesapla"ya bas.</p>';return null}
     if(!ln.shown){el.innerHTML=`<button type="button" class="primary calc-btn" data-i="${i}">Medium'u hesapla</button>`;return null}
-    const sa=fmt(r.sideAvg,1);
-    const byAvg=false,lab=state.settings.formula!=='std';
-    const fx=`${fmt(hemo().F)}${r.df!==1?' × '+fmt(r.df,1):''}`;
-    const s1=byAvg?`${fmt(r.vals.reduce((a,b)=>a+b,0))} ÷ ${r.n} = `:(r.used.length===2?'('+fmt(r.used[0].sum)+' + '+fmt(r.used[1].sum)+') ÷ 2 = ':'');
-    const s2=lab?`${fmt(st.cells)} ÷ (${sa} × ${fx} × ${Number.isFinite(r.tube)?fmt(r.tube,1):'?'})`:`${fmt(st.cells)} ÷ (${sa} × ${fx})`;
-    let h=`<div class="recipe main"><span class="title">Kuyu başı hesap</span>
+    const a=fmt(r.avg,1);
+    let h=`<div class="recipe main"><span class="title">Kuyu başı (3 kuyu)</span>
       <div class="steps">
-        <div class="step"><span class="sk">1. ${nsides()===2?'İki tarafın ortalaması':'Orta kare sayımı'}</span><span class="sv">${s1}<strong>${sa}</strong></span></div>
-        <div class="step"><span class="sk">2. Kuyuya hücre süspansiyonu</span><span class="sv">${s2} = ${fmt(r.cellMl,4)} mL = <strong>${fmt(r.cellVol,1)} µL</strong></span></div>
-        <div class="step"><span class="sk">3. Eklenecek medium</span><span class="sv">${fmt(st.vol)} − ${fmt(r.cellVol,1)} = <strong>${r.ok?fmt(r.medVol,1)+' µL':'eksi çıkıyor'}</strong></span></div>
+        <div class="step"><span class="sk">1. Ortalama</span><span class="sv">${r.sides.length===2?'('+fmt(r.sides[0])+' + '+fmt(r.sides[1])+') ÷ 2 = ':''}<strong>${a}</strong></span></div>
+        <div class="step"><span class="sk">2. Kuyuya hücre süspansiyonu</span><span class="sv">200.000 ÷ (${a} × 10.000 × ${r.tube>0?fmt(r.tube,1):'?'}) = ${fmt(r.cellMl,4)} mL = <strong>${fmt(r.cellVol,1)} µL</strong></span></div>
+        <div class="step"><span class="sk">3. Eklenecek medium</span><span class="sv">1.000 − ${fmt(r.cellVol,1)} = <strong>${r.ok?fmt(r.medVol,1)+' µL':'eksi çıkıyor'}</strong></span></div>
       </div>
       ${r.ok?pourHTML(fmt(r.cellVol,1)+' µL',fmt(r.medVol,1)+' µL'):''}</div>`;
-    if(Number.isFinite(r.total))h+=`<div class="formula">Tüpteki toplam hücre: ${sa} × ${fx} × ${fmt(r.tube,1)} mL = ${fmt(r.total,0)}</div>`;
+    if(Number.isFinite(r.total))h+=`<div class="formula">Tüpteki toplam hücre: ${a} × 10.000 × ${fmt(r.tube,1)} mL = ${fmt(r.total)}</div>`;
     h+=`<div class="msgs">${r.msgs.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('')}</div>`;
     el.innerHTML=h;return r;
   });
-  summary(st);plate();
+  summary();plates();
 }
-
-function summary(st){
-  const t=document.getElementById('sumTable');
+function summary(){
   let h='<thead><tr><th>Hat</th><th>Toplam hücre</th><th>Kuyu: hücre</th><th>Kuyu: medium</th></tr></thead><tbody>';
-  vis().forEach((ln,i)=>{const r=results[i];
-    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total,0):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td>`:`<td colspan="3" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Henüz hesaplanmadı'}</td>`)+'</tr>'});
-  t.innerHTML=h+'</tbody>';
+  state.lines.forEach((ln,i)=>{const r=results[i];
+    h+=`<tr><td>${esc(ln.name)}</td>`+(r&&r.ok?`<td>${Number.isFinite(r.total)?fmt(r.total):'–'}</td><td>${fmt(r.cellVol,1)} µL</td><td>${fmt(r.medVol,1)} µL</td>`:`<td colspan="3" style="text-align:left;font-family:var(--sans);color:var(--muted)">${r?'Süspansiyon çok seyreltik':'Henüz hesaplanmadı'}</td>`)+'</tr>'});
+  document.getElementById('sumTable').innerHTML=h+'</tbody>';
 }
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-
-function plate(){
-  const size=PLATES[state.settings.plate]?+state.settings.plate:24,[R,C]=PLATES[size];
-  const L=vis(),n=L.length,w=Math.max(0,Math.round(settings().wells)||0);
-  const RL='ABCDEFGH';
-  // her kuyuya hangi hat: hatlar plakaya sığıyorsa her hat kendi sırasına, yoksa sırayla doldur
-  const map={};const per=L.map(()=>[]);
-  const rowEach=n<=R&&w<=C;
-  for(let i=0;i<n;i++)for(let k=0;k<w;k++){
-    let r,c;
-    if(rowEach){r=i;c=k}else{const idx=i*w+k;if(idx>=size)continue;r=Math.floor(idx/C);c=idx%C}
-    map[r+'_'+c]=i;per[i].push(RL[r]+(c+1));
-  }
-  const p=document.getElementById('plate');
-  p.style.gridTemplateColumns=`auto repeat(${C},1fr)`;
-  p.style.maxWidth=size<=12?'360px':size===24?'420px':'100%';
-  let h='<span></span>';
-  for(let c=1;c<=C;c++)h+=`<span class="cl">${c}</span>`;
-  for(let r=0;r<R;r++){h+=`<span class="rl">${RL[r]}</span>`;
-    for(let c=0;c<C;c++){const i=map[r+'_'+c];const lbl=size>=48?'':RL[r]+(c+1);
-      h+=i==null?`<span class="well" style="border-color:var(--line);color:var(--muted)">${lbl}</span>`
-        :`<span class="well" style="border-color:var(${COLORS[i]});background:color-mix(in srgb,var(${COLORS[i]}) 22%,transparent);color:var(--fg)">${lbl}</span>`}}
-  p.innerHTML=h;
-  p.style.setProperty('--wf',size<=12?'.9rem':'.6rem');
-  const need=n*w;
-  document.getElementById('plateTitle').textContent=`${size} kuyulu plaka önerisi`;
-  document.getElementById('plateNote').textContent=need>size
-    ?`${n} hat × ${w} kuyu = ${need} kuyu, ama plaka ${size} kuyulu. ${need-size} kuyu sığmıyor: daha büyük plaka seç ya da ikinci plaka kullan.`
-    :`${n} hat × ${w} kuyu = ${need} kuyu (${size} kuyudan ${size-need} boş).${rowEach?' Her sıraya bir hat koymak karışmayı önler.':''}`;
-  const range=a=>a.length?(a.length>2?a[0]+'–'+a[a.length-1]:a.join(', ')):'sığmadı';
-  document.getElementById('legend').innerHTML=L.map((l,i)=>`<span><span class="dot" style="background:var(${COLORS[i]})"></span>${esc(l.name)}: ${range(per[i])}</span>`).join('');
+// fotoğraftaki gibi: 1. plaka CCLP (A) / R-CCLP (B), 2. plaka HuCCT (A) / R-HuCCT (B)
+function plates(){
+  document.getElementById('plates').innerHTML=[[0,1],[2,3]].map((pair,p)=>{
+    let h='<span></span>'+[1,2,3].map(c=>`<span class="cl">${c}</span>`).join('');
+    pair.forEach((li,r)=>{h+=`<span class="rl">${'AB'[r]}</span>`;
+      for(let c=0;c<3;c++)h+=`<span class="well" style="border-color:var(${COLORS[li]});background:color-mix(in srgb,var(${COLORS[li]}) 22%,transparent);color:var(--fg)">${esc(state.lines[li].name)}</span>`});
+    return `<div class="plate-box"><span class="eyebrow">${p+1}. plaka (6 kuyulu)</span><div class="plate">${h}</div></div>`;
+  }).join('');
 }
 
 document.getElementById('copyBtn').addEventListener('click',()=>{
-  const st=settings();
-  let s=`Ekim hesabı (${fmt(st.cells)} hücre/kuyu, ${fmt(st.vol)} µL, ${hemo().name} ×${fmt(hemo().F)}${dfac()!==1?', seyreltme ×'+fmt(dfac(),1):''}, ${nsides()} taraf × ${nsq()} kare, ${state.settings.formula==='std'?'standart formül':'lab formülü'})\n`;
-  vis().forEach((ln,i)=>{const r=results[i];
+  let s='Ekim hesabı (200.000 hücre/kuyu, 1 mL, 3 kuyu/hat)\n';
+  state.lines.forEach((ln,i)=>{const r=results[i];
     if(!r){s+=`${ln.name}: hesaplanmadı\n`;return}
     if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
-    s+=`${ln.name}: ${vName()} ${fmt(r.sideAvg,1)}, toplam ${Number.isFinite(r.total)?fmt(r.total,0):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium\n`});
+    s+=`${ln.name}: ortalama ${fmt(r.avg,1)}, toplam ${Number.isFinite(r.total)?fmt(r.total):'–'} hücre | kuyu: ${fmt(r.cellVol,1)} µL hücre + ${fmt(r.medVol,1)} µL medium\n`});
   const toast=document.getElementById('toast');
-  const done=()=>{toast.textContent='Kopyalandı';setTimeout(()=>toast.textContent='',2000)};
-  try{navigator.clipboard.writeText(s).then(done,()=>{toast.textContent='Kopyalanamadı, tablodan elle seç.'})}catch(e){toast.textContent='Kopyalanamadı, tablodan elle seç.'}
+  const fail=()=>{toast.textContent='Kopyalanamadı, tablodan elle seç.'};
+  try{navigator.clipboard.writeText(s).then(()=>{toast.textContent='Kopyalandı';setTimeout(()=>toast.textContent='',2000)},fail)}catch(e){fail()}
 });
 
 const resetArea=document.getElementById('resetArea');
 function showReset(){
   resetArea.innerHTML='<button id="resetBtn">Tüm sayımları sıfırla</button>';
   document.getElementById('resetBtn').addEventListener('click',()=>{
-    resetArea.innerHTML='<div class="confirm"><span>Görünen hatların sayımları silinsin mi?</span><button class="primary" id="yes">Evet, sıfırla</button><button id="no">Vazgeç</button></div>';
+    resetArea.innerHTML='<div class="confirm"><span>Dört hattın sayımları silinsin mi?</span><button class="primary" id="yes">Evet, sıfırla</button><button id="no">Vazgeç</button></div>';
     document.getElementById('no').onclick=showReset;
     document.getElementById('yes').onclick=()=>{
-      vis().forEach((l,i)=>{l.sq=Array(MAXQ*2).fill("");l.shown=false;
-        for(let j=0;j<MAXQ*2;j++){const q=document.getElementById(`q${i}_${j}`);if(q)q.value=""}});
+      state.lines.forEach((l,i)=>{l.sq=Array(MAXQ*2).fill('');l.shown=false;[0,MAXQ].forEach(j=>document.getElementById(`q${i}_${j}`).value='')});
       state.example=false;save();banner();update();showReset();
     };
   });
 }
-showReset();banner();drawHemo();update();
+showReset();banner();save();update();
 })();
 </script>
 </body>
