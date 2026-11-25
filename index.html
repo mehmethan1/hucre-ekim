@@ -54,6 +54,11 @@
       <div><h2>Deney zamanlayıcı</h2><p>İlacı ekledin mi? 24, 48 ve 72. saatte ne yapacağını hatırlatır.</p><div class="st" id="st-deney"></div></div>
       <span class="arrow" aria-hidden="true">›</span>
     </a>
+    <a class="tile" href="../hucre-buyume/">
+      <span class="ico" style="background:color-mix(in srgb,var(--c3) 16%,transparent);color:var(--c3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg></span>
+      <div><h2>Büyüme tahmini</h2><p>Pasajdan sonra hangi gün kaç hücre olur, istediğin sayıya ne zaman ulaşırsın.</p><div class="st" id="st-buyume"></div></div>
+      <span class="arrow" aria-hidden="true">›</span>
+    </a>
   </nav>
 
   <p class="muted small">Kayıtlar bu telefonun tarayıcısında tutulur. Pasaj sayfasından yedek alabilirsin.</p>
@@ -83,6 +88,12 @@
     let next=null;(D.exps||[]).forEach(e=>(e.steps||[]).forEach(s=>{if(s.done)return;const at=+new Date(e.start)+s.h*36e5;if(!next||at<next.at)next={at,e,s}}));
     if(next){const left=next.at-now;rows.push(`<span class="row"><span class="badge ${left<0?'bad':left<36e5?'warn':'info'}">${left<0?'Zamanı geçti':dur(left)}</span> ${esc(next.e.name)} · ${next.s.h}. saat (${dateStr(next.at)})</span>`)}
     ds.innerHTML=rows.join('');
+  }
+  // Büyüme tahmini: en yakın kurulu bildirim
+  const B=load('sena-buyume-v1',null);const bs=document.getElementById('st-buyume');
+  if(B&&Array.isArray(B.rems)){const now=Date.now();
+    const next=B.rems.filter(r=>r.at>now).sort((a,b)=>a.at-b.at)[0];
+    if(next)bs.innerHTML=`<span class="row"><span class="badge info">${dur(next.at-now)}</span> ${esc(next.title)}</span>`;
   }
 })();
 </script>
