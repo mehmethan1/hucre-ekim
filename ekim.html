@@ -169,6 +169,7 @@ td:first-child{font-family:var(--sans);font-weight:600}
   <section class="panel" id="hemoPanel">
     <h2>Hemositometre tipi</h2>
     <div class="chips" role="group" aria-label="Hemositometre tipi">
+      <button type="button" class="chip" data-hemo="lab">Bizim lab hemositometresi</button>
       <button type="button" class="chip" data-hemo="imp">Improved Neubauer</button>
       <button type="button" class="chip" data-hemo="old">Eski Neubauer</button>
       <button type="button" class="chip" data-hemo="custom">Özel çarpan</button>
@@ -288,6 +289,8 @@ if(state.settings.plate==null)state.settings.plate='24';
 if(state.settings.tube==null)state.settings.tube='';
 const DEF={nsq:'4',nsides:'2',method:'sum',formula:'lab',df:'1',customF:''};
 for(const k in DEF)if(state.settings[k]==null)state.settings[k]=DEF[k];
+// 2026-11-25: Sena'nın laboratuvar hemositometresi varsayılan (bir kez uygulanır)
+if(!state.settings.hemoV2){state.settings.hemo='lab';state.settings.unit='block';state.settings.hemoV2=1}
 state.lines.forEach(l=>{if(!l.sq||l.sq.length<MAXQ*2){const o=l.sq||[];const s=Array(MAXQ*2).fill('');
   for(let k=0;k<4;k++){s[k]=o[k]??'';s[MAXQ+k]=o[4+k]??''}l.sq=s}});
 function nsq(){return Math.min(MAXQ,Math.max(1,+state.settings.nsq||4))}
@@ -322,10 +325,14 @@ function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.
 
 // hemositometre tipi: Improved Neubauer (1 mm² köşe kare → ×10⁴) ya da eski Neubauer (1 mm² blok ×10⁴ veya tek 0,25 mm kare ×160.000)
 // hacim: 1 mm² × 0,1 mm = 0,1 µL → ×10⁴ ; 0,0625 mm² × 0,1 mm = 0,00625 µL → ×160.000
-function hemo(){const t=['old','custom'].includes(state.settings.hemo)?state.settings.hemo:'imp';const u=t==='old'&&state.settings.unit==='small'?'small':'block';
+// 'lab' = Sena'nın laboratuvarındaki hemositometre (varsayılan): 3 × 3 mm, köşe 1 mm² kareleri 5 × 5 (0,2 mm) bölünmüş,
+// ortadaki 0,05 mm çizgiler kenarlara uzayıp artı yapıyor. 0,2 mm kare: 0,04 mm² × 0,1 mm = 0,004 µL → ×250.000
+const HEMO_NAMES={lab:'Bizim lab hemositometresi',imp:'Improved Neubauer',old:'Eski Neubauer',custom:'Özel çarpan'};
+function hemo(){const t=HEMO_NAMES[state.settings.hemo]?state.settings.hemo:'lab';const u=(t==='old'||t==='lab')&&state.settings.unit==='small'?'small':'block';
   const cf=parse(state.settings.customF);
-  const F=t==='custom'?(cf>0?cf:10000):u==='small'?160000:10000;
-  return{t,u,F,name:t==='old'?'Eski Neubauer':t==='custom'?'Özel çarpan':'Improved Neubauer'}}
+  const F=t==='custom'?(cf>0?cf:10000):u==='small'?(t==='lab'?250000:160000):10000;
+  const side=t==='lab'?0.2:0.25, div=t==='lab'?5:4;
+  return{t,u,F,side,div,name:HEMO_NAMES[t]}}
 const NS='http://www.w3.org/2000/svg';
 function drawHemo(){
   const h=hemo(),s=document.getElementById('hemoSvg');s.innerHTML='';
@@ -334,9 +341,15 @@ function drawHemo(){
     e.style.fill='color-mix(in srgb,var(--trypan) 30%,transparent)';e.style.stroke='var(--trypan)';e.style.strokeWidth='3';s.appendChild(e)};
   const corners=[[0,0],[200,0],[0,200],[200,200]];
   const q=nsq();
-  if(h.u==='small')[[0,0],[275,0],[0,275],[275,275],[25,0],[250,0],[0,25],[275,25],[25,275]].slice(0,q).forEach(([x,y])=>rc(x,y,25));
+  const a=h.side*100,b=300-a;
+  if(h.u==='small')[[0,0],[b,0],[0,b],[b,b],[a,0],[b-a,0],[0,a],[b,a],[a,b]].slice(0,q).forEach(([x,y])=>rc(x,y,a));
   else [[0,0],[200,0],[0,200],[200,200],[100,100],[100,0],[0,100],[200,100],[100,200]].slice(0,q).forEach(([x,y])=>rc(x,y,100));
-  if(h.t==='old'){
+  if(h.t==='lab'){
+    for(let x=100;x<=200;x+=5){ln(x,0,x,300,.5,'--muted');ln(0,x,300,x,.5,'--muted')}
+    for(let x=100;x<=200;x+=20){ln(x,0,x,300,1.4,'--fg');ln(0,x,300,x,1.4,'--fg')}
+    corners.forEach(([ox,oy])=>{for(let k=1;k<5;k++){ln(ox+k*20,oy,ox+k*20,oy+100,1,'--fg');ln(ox,oy+k*20,ox+100,oy+k*20,1,'--fg')}});
+    for(let i=0;i<=3;i++){const p=i*100;ln(p,0,p,300,2.4,'--fg');ln(0,p,300,p,2.4,'--fg')}
+  }else if(h.t==='old'){
     for(let x=100;x<=200;x+=6.25){ln(x,0,x,300,.5,'--muted');ln(0,x,300,x,.5,'--muted')}
     for(let i=0;i<=12;i++){const p=i*25;ln(p,0,p,300,1,'--fg');ln(0,p,300,p,1,'--fg')}
   }else{
@@ -347,11 +360,17 @@ function drawHemo(){
   }
   document.querySelectorAll('[data-hemo]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hemo===h.t));
   document.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.unit===h.u));
-  document.getElementById('unitRow').hidden=h.t!=='old';
+  document.getElementById('unitRow').hidden=!(h.t==='old'||h.t==='lab');
+  document.querySelector('[data-unit=block]').textContent=`1 mm² köşe bloğu (${h.div} × ${h.div} küçük kare)`;
+  document.querySelector('[data-unit=small]').textContent=`Tek küçük kare (${fmt(h.side,h.side===0.2?1:2)} mm)`;
   document.getElementById('customRow').hidden=h.t!=='custom';
   const sides=nsides()===2?'Her taraftan':'Bir taraftan';
   document.getElementById('hemoText').innerHTML=h.t==='custom'
     ?`Kendi hemositometrenin çarpanını yaz. ${sides} <strong>${q} kare</strong> sayılıyor (çizim örnek olarak Improved Neubauer).`
+    :h.t==='lab'
+    ?(h.u==='block'
+      ?`3 × 3 mm ızgara: 9 büyük kare (1 mm²), köşedekiler 5 × 5 küçük kareye bölünmüş, ortadan sık çizgili artı (+) geçiyor. ${sides} <strong>${q} köşe bloğu</strong> say (işaretli); her blok 5 × 5 küçük kare.`
+      :`${sides} <strong>${q} tek küçük kare</strong> say (işaretli örnekler, her biri 0,2 × 0,2 mm, köşe bloklarının içinden). Sık çizgili bandın dışındakileri seç.`)
     :h.t==='imp'
     ?`Üçlü çizgilerle ayrılmış 9 büyük kare var. ${sides} <strong>${q} büyük kare</strong> say (işaretli). Her büyük kare 1 mm², içinde 4 × 4 küçük kare var.`
     :h.u==='block'
@@ -359,12 +378,16 @@ function drawHemo(){
       :`${sides} <strong>${q} tek küçük kare</strong> say (işaretli örnekler, her biri 0,25 × 0,25 mm). Hangi küçük kareyi saydığın fark etmez, hepsi aynı boyutta; sık çizgili bandın dışındakileri seç.`;
   document.getElementById('hemoFactor').textContent=h.t==='custom'
     ?`hücre/mL = kare başı hücre × ${fmt(h.F)}`
+    :h.u==='small'&&h.t==='lab'
+    ?'1 küçük kare = 0,2 × 0,2 mm × 0,1 mm = 0,004 µL → hücre/mL = kare başı hücre × 250.000'
     :h.u==='small'
     ?'1 küçük kare = 0,00625 µL → hücre/mL = kare başı hücre × 160.000'
     :'1 büyük kare = 1 mm² × 0,1 mm = 0,1 µL → hücre/mL = kare başı hücre × 10.000';
   document.querySelectorAll('.fx').forEach(e=>e.textContent=fmt(h.F));
   document.getElementById('fxWhy').textContent=h.t==='custom'
     ?`Özel çarpan olarak ${fmt(h.F)} girildi.`
+    :h.u==='small'&&h.t==='lab'
+    ?'Tek küçük kare 0,2 × 0,2 mm, derinlik 0,1 mm: hacmi 0,004 µL. 1 mL için 250.000 ile çarpılır.'
     :h.u==='small'
     ?'Eski Neubauer tek küçük kare 0,25 × 0,25 mm, derinlik 0,1 mm: hacmi 0,00625 µL. 1 mL için 160.000 ile çarpılır.'
     :`${h.name} büyük karesi 1 × 1 mm, derinlik 0,1 mm: hacmi 0,1 µL. 1 mL için 10.000 ile çarpılır.`;
