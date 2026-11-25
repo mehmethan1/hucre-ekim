@@ -5,6 +5,6 @@ self.addEventListener('notificationclick',e=>{
   e.notification.close();
   e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{
     for(const c of cs){if('focus' in c)return c.focus()}
-    return self.clients.openWindow('./deney.html');
+    return self.clients.openWindow('./');
   }));
 });
