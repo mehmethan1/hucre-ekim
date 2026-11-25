@@ -127,6 +127,9 @@ td:first-child{font-family:var(--sans);font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 
+.hemo-pick{display:grid;grid-template-columns:minmax(0,220px) 1fr;gap:16px;align-items:start}
+.hemo-pick svg{width:100%;height:auto;max-width:100%;display:block}
+@media (max-width:520px){.hemo-pick{grid-template-columns:1fr}.hemo-pick svg{max-width:260px}}
 .howto ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
 .formula{font-family:var(--mono);background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:.9rem;overflow-x:auto}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -151,6 +154,28 @@ td:first-child{font-family:var(--sans);font-weight:600}
       <div class="field"><label for="s-vol">Kuyu başı toplam hacim (µL)</label><input type="text" inputmode="decimal" id="s-vol"></div>
       <div class="field"><label for="s-wells">Hat başı kuyu sayısı</label><input type="text" inputmode="numeric" id="s-wells"></div>    </div>
   </details>
+
+  <section class="panel" id="hemoPanel">
+    <h2>Hemositometre tipi</h2>
+    <div class="chips" role="group" aria-label="Hemositometre tipi">
+      <button type="button" class="chip" data-hemo="imp">Improved Neubauer</button>
+      <button type="button" class="chip" data-hemo="old">Eski Neubauer</button>
+    </div>
+    <div id="unitRow" hidden style="display:flex;flex-direction:column;gap:6px">
+      <span class="eyebrow">Saydığın "kare" hangisi?</span>
+      <div class="chips" role="group" aria-label="Sayılan kare">
+        <button type="button" class="chip" data-unit="block">1 mm² köşe bloğu (4 × 4 küçük kare)</button>
+        <button type="button" class="chip" data-unit="small">Tek küçük kare (0,25 mm)</button>
+      </div>
+    </div>
+    <div class="hemo-pick">
+      <svg id="hemoSvg" viewBox="-4 -4 308 308" role="img" aria-label="Hemositometre ızgarası, sayılacak kareler işaretli"></svg>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        <p id="hemoText" style="font-size:.92rem"></p>
+        <div class="formula" id="hemoFactor"></div>
+      </div>
+    </div>
+  </section>
 
   <div class="banner" id="exampleBanner" hidden>
     <span><strong>İlk karttaki sayılar örnek.</strong> Kendi sayımını yazınca ya da temizleyince bu uyarı kaybolur.</span>
@@ -178,11 +203,12 @@ td:first-child{font-family:var(--sans);font-weight:600}
   <section class="panel howto">
     <h2>Nasıl hesaplıyor?</h2>
     <div class="formula">taraf ortalaması = (1. taraf 4 kare toplamı + 2. taraf 4 kare toplamı) ÷ 2</div>
-    <div class="formula">kuyuya süspansiyon (mL) = 350.000 ÷ (taraf ortalaması × 10.000 × toplama hacmi mL)</div>
+    <div class="formula">kuyuya süspansiyon (mL) = 350.000 ÷ (taraf ortalaması × <span class="fx">10.000</span> × toplama hacmi mL)</div>
     <div class="formula">eklenecek medium (µL) = 500 − süspansiyon (µL)</div>
-    <div class="formula">tüpteki toplam hücre = taraf ortalaması × 10.000 × 6 mL</div>
+    <div class="formula">tüpteki toplam hücre = taraf ortalaması × <span class="fx">10.000</span> × 6 mL</div>
     <ol>
-      <li><strong>6 mL'de toplayınca:</strong> 350.000 hücre 500 µL'ye sığsın diye tüpte en az 700.000 hücre/mL gerekir. Bu, taraf ortalamasının (4 kare toplamı) en az 70 olması demek. Altındaysa santrifüjleyip daha az mediumda topla.</li>
+      <li><strong>Çarpan neden <span class="fx">10.000</span>?</strong> <span id="fxWhy"></span></li>
+      <li><strong>6 mL'de toplayınca:</strong> 350.000 hücre 500 µL'ye sığsın diye tüpte en az 700.000 hücre/mL gerekir. Bu, taraf ortalamasının (4 kare toplamı) en az <span id="minAvg">70</span> olması demek. Altındaysa santrifüjleyip daha az mediumda topla.</li>
       <li><strong>Seyreltmeli miyim?</strong> Bir karede 100'den fazla hücre varsa hücreler üst üste biner. Hücreleri daha fazla mediumda toplayıp yeniden say.</li>
     </ol>
   </section>
@@ -218,8 +244,52 @@ function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}
 
 // settings
 const S={cells:'s-cells',vol:'s-vol',wells:'s-wells'};
-for(const k in S){const el=document.getElementById(S[k]);el.value=state.settings[k];el.addEventListener('input',()=>{state.settings[k]=el.value;save();update()})}
+for(const k in S){const el=document.getElementById(S[k]);el.value=state.settings[k];el.addEventListener('input',()=>{state.settings[k]=el.value;save();drawHemo();update()})}
 function settings(){return{cells:parse(state.settings.cells),vol:parseDec(state.settings.vol),wells:parse(state.settings.wells),extra:0}}
+
+// hemositometre tipi: Improved Neubauer (1 mm² köşe kare → ×10⁴) ya da eski Neubauer (1 mm² blok ×10⁴ veya tek 0,25 mm kare ×160.000)
+// hacim: 1 mm² × 0,1 mm = 0,1 µL → ×10⁴ ; 0,0625 mm² × 0,1 mm = 0,00625 µL → ×160.000
+function hemo(){const t=state.settings.hemo==='old'?'old':'imp';const u=t==='old'&&state.settings.unit==='small'?'small':'block';
+  return{t,u,F:u==='small'?160000:10000,name:t==='old'?'Eski Neubauer':'Improved Neubauer'}}
+const NS='http://www.w3.org/2000/svg';
+function drawHemo(){
+  const h=hemo(),s=document.getElementById('hemoSvg');s.innerHTML='';
+  const ln=(x1,y1,x2,y2,w,c)=>{const e=document.createElementNS(NS,'line');e.setAttribute('x1',x1);e.setAttribute('y1',y1);e.setAttribute('x2',x2);e.setAttribute('y2',y2);e.setAttribute('stroke-width',w);e.style.stroke=`var(${c})`;s.appendChild(e)};
+  const rc=(x,y,w)=>{const e=document.createElementNS(NS,'rect');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('width',w);e.setAttribute('height',w);
+    e.style.fill='color-mix(in srgb,var(--trypan) 30%,transparent)';e.style.stroke='var(--trypan)';e.style.strokeWidth='3';s.appendChild(e)};
+  const corners=[[0,0],[200,0],[0,200],[200,200]];
+  if(h.u==='small')[[0,0],[275,0],[0,275],[275,275]].forEach(([x,y])=>rc(x,y,25));
+  else corners.forEach(([x,y])=>rc(x,y,100));
+  if(h.t==='old'){
+    for(let x=100;x<=200;x+=6.25){ln(x,0,x,300,.5,'--muted');ln(0,x,300,x,.5,'--muted')}
+    for(let i=0;i<=12;i++){const p=i*25;ln(p,0,p,300,1,'--fg');ln(0,p,300,p,1,'--fg')}
+  }else{
+    for(let x=100;x<=200;x+=5){ln(x,100,x,200,.4,'--muted');ln(100,x,200,x,.4,'--muted')}
+    for(let x=100;x<=200;x+=20){ln(x,100,x,200,1,'--fg');ln(100,x,200,x,1,'--fg')}
+    corners.forEach(([ox,oy])=>{for(let k=1;k<4;k++){ln(ox+k*25,oy,ox+k*25,oy+100,1,'--fg');ln(ox,oy+k*25,ox+100,oy+k*25,1,'--fg')}});
+    for(let i=0;i<=3;i++){const p=i*100;[-2.5,0,2.5].forEach(d=>{ln(p+d,0,p+d,300,1,'--fg');ln(0,p+d,300,p+d,1,'--fg')})}
+  }
+  document.querySelectorAll('[data-hemo]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hemo===h.t));
+  document.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.unit===h.u));
+  document.getElementById('unitRow').hidden=h.t!=='old';
+  document.getElementById('hemoText').innerHTML=h.t==='imp'
+    ?'Üçlü çizgilerle ayrılmış 9 büyük kare var. Her taraftan <strong>4 köşe karesini</strong> say (işaretli). Her köşe karesi 1 mm², içinde 4 × 4 küçük kare var.'
+    :h.u==='block'
+      ?'Izgara 12 × 12 eşit küçük kareden oluşuyor, ortadan sık çizgili artı (+) geçiyor. Her köşedeki <strong>4 × 4 küçük kareyi birlikte</strong> say (işaretli bloklar, her biri 1 mm²).'
+      :'Her taraftan <strong>4 tek küçük kare</strong> say (işaretli örnekler, her biri 0,25 × 0,25 mm). Hangi küçük kareyi saydığın fark etmez, hepsi aynı boyutta; sık çizgili bandın dışındakileri seç.';
+  document.getElementById('hemoFactor').textContent=h.u==='small'
+    ?'1 küçük kare = 0,00625 µL → hücre/mL = kare başı hücre × 160.000'
+    :'1 köşe karesi = 1 mm² × 0,1 mm = 0,1 µL → hücre/mL = kare başı hücre × 10.000';
+  document.querySelectorAll('.fx').forEach(e=>e.textContent=fmt(h.F));
+  document.getElementById('fxWhy').textContent=h.u==='small'
+    ?'Eski Neubauer tek küçük kare 0,25 × 0,25 mm, derinlik 0,1 mm: hacmi 0,00625 µL. 1 mL için 160.000 ile çarpılır.'
+    :`${h.name} köşe karesi 1 × 1 mm, derinlik 0,1 mm: hacmi 0,1 µL. 1 mL için 10.000 ile çarpılır.`;
+  const st=settings();document.getElementById('minAvg').textContent=fmt((st.cells/st.vol*1000)/h.F,1);
+}
+document.getElementById('hemoPanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.hemo)state.settings.hemo=b.dataset.hemo;
+  if(b.dataset.unit)state.settings.unit=b.dataset.unit;
+  save();drawHemo();update();});
 
 // cards
 const cardsEl=document.getElementById('cards');
@@ -266,7 +336,7 @@ function calc(ln,st){
   const used=sides.map((a,k)=>({k,cnt:a.length,sum:a.reduce((x,y)=>x+y,0)})).filter(s=>s.cnt>0);
   const sideAvg=used.reduce((x,s)=>x+s.sum,0)/used.length;
   const df=1;
-  const conc=sideAvg*1e4;
+  const conc=sideAvg*hemo().F;
   const sd=n>1?Math.sqrt(vals.reduce((a,b)=>a+(b-avg)**2,0)/(n-1)):0;
   const cv=avg>0?sd/avg:0;
   const tube=parseDec(ln.tube);
@@ -300,7 +370,7 @@ const volStr=v=>v>=1000?fmt(v/1000,3)+' mL':fmt(v,1)+' µL';
 let results=[];
 function update(){
   const st=settings();
-  document.getElementById('setSummary').textContent=`${fmt(st.cells)} hücre · ${fmt(st.vol)} µL · ${fmt(st.wells)} kuyu`;
+  document.getElementById('setSummary').textContent=`${hemo().name} · ${fmt(st.cells)} hücre · ${fmt(st.vol)} µL · ${fmt(st.wells)} kuyu`;
   results=state.lines.map((ln,i)=>{
     const r=calc(ln,st);const el=refs[i].res;
     if(!r){el.innerHTML='<p class="empty">Kare sayılarını gir, sonra "Medium\'u hesapla"ya bas.</p>';return null}
@@ -309,11 +379,11 @@ function update(){
     let h=`<div class="recipe main"><span class="title">Kuyu başı hesap</span>
       <div class="steps">
         <div class="step"><span class="sk">1. Taraf ortalaması</span><span class="sv">${r.used.length===2?'('+fmt(r.used[0].sum)+' + '+fmt(r.used[1].sum)+') ÷ 2 = ':''}<strong>${sa}</strong></span></div>
-        <div class="step"><span class="sk">2. Kuyuya hücre süspansiyonu</span><span class="sv">${fmt(st.cells)} ÷ (${sa} × 10.000 × ${Number.isFinite(r.tube)?fmt(r.tube,1):'?'}) =${fmt(r.cellMl,4)} mL = <strong>${fmt(r.cellVol,1)} µL</strong></span></div>
+        <div class="step"><span class="sk">2. Kuyuya hücre süspansiyonu</span><span class="sv">${fmt(st.cells)} ÷ (${sa} × ${fmt(hemo().F)} × ${Number.isFinite(r.tube)?fmt(r.tube,1):'?'}) =${fmt(r.cellMl,4)} mL = <strong>${fmt(r.cellVol,1)} µL</strong></span></div>
         <div class="step"><span class="sk">3. Eklenecek medium</span><span class="sv">${fmt(st.vol)} − ${fmt(r.cellVol,1)} = <strong>${r.ok?fmt(r.medVol,1)+' µL':'eksi çıkıyor'}</strong></span></div>
       </div>
       ${r.ok?pourHTML(fmt(r.cellVol,1)+' µL',fmt(r.medVol,1)+' µL'):''}</div>`;
-    if(Number.isFinite(r.total))h+=`<div class="formula">Tüpteki toplam hücre: ${sa} × 10.000 × ${fmt(r.tube,1)} mL = ${fmt(r.total,0)}</div>`;
+    if(Number.isFinite(r.total))h+=`<div class="formula">Tüpteki toplam hücre: ${sa} × ${fmt(hemo().F)} × ${fmt(r.tube,1)} mL = ${fmt(r.total,0)}</div>`;
     h+=`<div class="msgs">${r.msgs.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('')}</div>`;
     el.innerHTML=h;return r;
   });
@@ -340,7 +410,7 @@ function plate(){
 
 document.getElementById('copyBtn').addEventListener('click',()=>{
   const st=settings();
-  let s=`Ekim hesabı (${fmt(st.cells)} hücre/kuyu, ${fmt(st.vol)} µL)\n`;
+  let s=`Ekim hesabı (${fmt(st.cells)} hücre/kuyu, ${fmt(st.vol)} µL, ${hemo().name}, ×${fmt(hemo().F)})\n`;
   state.lines.forEach((ln,i)=>{const r=results[i];
     if(!r){s+=`${ln.name}: hesaplanmadı\n`;return}
     if(!r.ok){s+=`${ln.name}: süspansiyon çok seyreltik\n`;return}
@@ -363,7 +433,7 @@ function showReset(){
     };
   });
 }
-showReset();banner();update();
+showReset();banner();drawHemo();update();
 })();
 </script>
 </body>
